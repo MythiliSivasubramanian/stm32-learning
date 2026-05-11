@@ -38,18 +38,27 @@ This repository documents my hands-on learning journey in:
 ## Repository Structure
 
 GPIO
+
 UART
+
 SPI
+
 Timers
+
 ADC
+
 Interrupts
 
 ## Current Focus:
 
 C fundamentals
+
 Loop logic and pattern building
+
 Bitwise operations
+
 STM32 basics
+
 Notes
 
 
