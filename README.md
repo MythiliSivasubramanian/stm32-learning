@@ -9,8 +9,6 @@ This repository documents my hands-on learning journey in:
 - Bare-metal programming concepts
 - Debugging and problem-solving
 
----
-
 ## Goals
 
 - Build strong foundations in Embedded Systems
@@ -18,50 +16,43 @@ This repository documents my hands-on learning journey in:
 - Learn low-level programming concepts deeply
 - Practice writing efficient and readable embedded C code
 
----
+## Learning Path
 
-## Topics Covered
+My STM32 learning journey will follow:
 
-- GPIO
-- UART
+### Phase 1: Basics
+- What is STM32
+- What is embedded system
+- LED blinking (HAL library)
+
+### Phase 2: GPIO Deep Understanding
+- Input/output pins
+- Button handling
+- Real hardware interaction
+
+### Phase 3: Communication
+- UART (serial communication)
 - SPI
 - I2C
-- Timers
-- PWM
-- ADC
-- Interrupts
-- Bitwise Operations
-- Memory Concepts
 
----
+### Phase 4: Advanced
+- Timers
+- Interrupts
+- Memory concepts
+- Register-level programming
 
 ## Repository Structure
 
-GPIO
+```text
+stm32-learning/
+├── docs/
+│   └── 01_Fundamentals/
+└── projects/
+    └── LED_ON_stm32/
+```
 
-UART
-
-SPI
-
-Timers
-
-ADC
-
-Interrupts
-
-## Current Focus:
-
-C fundamentals
-
-Loop logic and pattern building
-
-Bitwise operations
-
-STM32 basics
-
-Notes
-
-
+- `docs/01_Fundamentals/` contains concept notes and theory writeups.
+- `projects/LED_ON_stm32/` contains the STM32CubeIDE project files, source code, drivers, linker scripts, and build output folder.
 
 This repository is part of my self-taught embedded systems learning journey.
 I focus on understanding concepts deeply rather than rushing through tutorials.
