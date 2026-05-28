@@ -180,3 +180,151 @@ Example:
 
 ---
 
+## 4. Detailed Examples with Binary
+
+### Example 1: Set bit 3
+
+    value = 0b00001010; // 10 decimal
+    mask  = 1 << 3;     // 0b00001000
+    result = value | mask; // 0b00001010 | 0b00001000 = 0b00001010
+
+If bit 3 was already `1`, the value stays the same.
+
+### Example 2: Clear bit 3
+
+    value = 0b00001110; // 14 decimal
+    mask  = ~(1 << 3);  // 0b11110111
+    result = value & mask; // 0b00001110 & 0b11110111 = 0b00000110
+
+This clears bit 3 and keeps the other bits unchanged.
+
+### Example 3: Toggle bit 1
+
+    value = 0b00000101; // 5 decimal
+    mask  = 1 << 1;     // 0b00000010
+    result = value ^ mask; // 0b00000111 (7 decimal)
+
+If bit 1 were `1`, this would clear it instead.
+
+### Example 4: Check bit 2
+
+    value = 0b00000100;
+    mask  = 1 << 2;
+    if (value & mask) {
+        // bit 2 is set
+    }
+
+The expression is non-zero only when the bit is `1`.
+
+---
+
+## 5. STM32 Register Examples
+
+### 5.1 Set a GPIO pin high
+
+STM32 output data registers use one bit per pin.
+To set pin 5 of GPIOA high:
+
+    GPIOA->ODR |= (1U << 5);
+
+Explanation:
+- `GPIOA->ODR` is the output data register.
+- `1U << 5` creates a mask with bit 5 set.
+- `|=` sets just that bit.
+
+### 5.2 Set a GPIO pin low
+
+To clear pin 5 of GPIOA:
+
+    GPIOA->ODR &= ~(1U << 5);
+
+Explanation:
+- `~(1U << 5)` creates a mask with all bits `1` except bit 5.
+- `&=` clears bit 5 while preserving all other pins.
+
+### 5.3 Configure a GPIO pin mode
+
+Suppose `GPIOA->MODER` uses two bits per pin:
+- `00` = input
+- `01` = output
+- `10` = alternate function
+- `11` = analog
+
+To make PA5 a general-purpose output:
+
+    GPIOA->MODER &= ~(3U << (5 * 2)); // clear mode bits for PA5
+    GPIOA->MODER |=  (1U << (5 * 2)); // set mode to output
+
+Explanation:
+- `3U << (5 * 2)` selects the two bits for pin 5.
+- `&= ~mask` clears those bits.
+- `|= 1U << (5 * 2)` writes `01` into the field.
+
+### 5.4 Enable a peripheral clock
+
+To enable the clock for GPIOA in RCC AHB1ENR:
+
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+
+To disable it:
+
+    RCC->AHB1ENR &= ~RCC_AHB1ENR_GPIOAEN;
+
+These bitwise operations control hardware power and clock gating.
+
+---
+
+## 6. Important Notes and Best Practices
+
+### 6.1 Use parentheses
+Always use parentheses around shifts and masks when combining operations.
+
+Good:
+
+    register &= ~(1U << pin);
+
+Bad:
+
+    register &= ~1U << pin; // wrong: operator precedence breaks the mask
+
+### 6.2 Prefer `1U` for bit masks
+Using unsigned constants avoids unexpected sign extension.
+
+Good:
+
+    1U << 5
+
+Bad:
+
+    1 << 31 // may be signed and undefined on some compilers
+
+### 6.3 Work with named masks
+Using named constants makes code easier to read.
+
+Example:
+
+    #define GPIOA_PIN5 (1U << 5)
+
+    GPIOA->ODR |= GPIOA_PIN5;
+
+### 6.4 Read before write when necessary
+Some registers are write-only, while others are read-modify-write.
+Always check the STM32 reference manual for the register behavior.
+
+---
+
+## 7. Summary
+
+Bitwise operations are the tools that let embedded programmers control hardware one bit at a time.
+In STM32 programming, registers are collections of bits, and understanding how to use masks, shifts, and logical operators is essential.
+
+Key points:
+- `&` selects bits
+- `|` sets bits
+- `^` toggles bits
+- `~` inverts bits
+- `<<` and `>>` move bits
+
+Use these operations to modify only the bits you need and keep the rest of the register unchanged.
+
+
