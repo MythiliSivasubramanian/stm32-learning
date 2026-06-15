@@ -23,5 +23,6 @@ My goal is to build strong understanding of:
 - Clearing bits
 - Toggling bits
 - Checking bits
+- Memory organization in STM32
 
 ---
