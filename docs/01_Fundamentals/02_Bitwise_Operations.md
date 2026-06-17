@@ -119,6 +119,7 @@ The XOR operator compares two binary values bit by bit.
 The result is `1` when exactly one input bit is `1`.
 
 Truth table:
+
 - `1 ^ 1 = 0`
 - `1 ^ 0 = 1`
 - `0 ^ 1 = 1`
