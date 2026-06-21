@@ -103,12 +103,12 @@ Stack memory is automatically managed by the processor.
 
 Example:
 
-```c
+
 void display(void)
 {
     int count = 10;
 }
-```
+
 
 The variable `count` is stored on the stack.
 
@@ -118,9 +118,9 @@ The heap is used for dynamic memory allocation.
 
 Example:
 
-```c
+
 int *ptr = malloc(sizeof(int));
-```
+
 
 In embedded systems, heap usage is often minimized because memory resources are limited.
 
@@ -145,6 +145,7 @@ The CPU controls peripherals through memory-mapped registers.
 
 Instead of directly controlling hardware signals, software configures registers to determine peripheral behavior.
 
+
 ---
 
 ## Memory-Mapped I/O Concept
@@ -155,9 +156,8 @@ This means peripheral registers occupy specific memory addresses.
 
 Example:
 
-```c
 GPIOA->ODR = 0x01;
-```
+
 
 Although this looks like a variable assignment, the CPU is actually writing to a hardware register.
 
