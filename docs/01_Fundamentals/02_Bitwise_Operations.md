@@ -309,6 +309,7 @@ Example:
     GPIOA->ODR |= GPIOA_PIN5;
 
 ### 6.4 Read before write when necessary
+
 Some registers are write-only, while others are read-modify-write.
 Always check the STM32 reference manual for the register behavior.
 
@@ -320,6 +321,8 @@ Bitwise operations are the tools that let embedded programmers control hardware 
 In STM32 programming, registers are collections of bits, and understanding how to use masks, shifts, and logical operators is essential.
 
 Key points:
+
+
 - `&` selects bits
 - `|` sets bits
 - `^` toggles bits
