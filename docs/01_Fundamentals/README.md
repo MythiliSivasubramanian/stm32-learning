@@ -13,6 +13,7 @@ My goal is to build strong understanding of:
 
 ## Topics Covered
 
+- Address finding 
 - Bitwise AND (`&`)
 - Bitwise OR (`|`)
 - XOR (`^`)
