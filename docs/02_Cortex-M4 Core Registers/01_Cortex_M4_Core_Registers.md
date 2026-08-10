@@ -256,3 +256,122 @@ And only after this does the CPU move on to the second Vector Table entry which 
 **The first Vector Table entry contains the initial value that the CPU loads into the MSP. The Vector Table contains a value. The MSP is the CPU register receiving that value**
 
 **_estack is not itself the MSP.** `_estack` is a linker-defined symbol whose value is the initial/top address chosen for the stack, typically the end of the RAM region (Origin + Length). Whereas MSP is the Main Stack Pointer Cortex-M4 core register, which holds the current address of the top of the active Stack. The address in MSP changes as the stack grows and shrinks, however `_estack` normally stays fixed. 
+
+
+### What happens to MSP when a function is called? 
+
+Lets consider the below code Snippet:
+```c
+int main(void)
+{
+    function();
+}
+
+void function(void)
+{
+    int x = 10;
+    int y = 20;
+}
+```
+
+Here,
+-   x and y are local variables which are commonly stored in the stack in RAM
+-   MSP points to the current top of the stack
+
+**Before function() is called:** Lets imagine
+```text
+RAM
+
+0x20020000  ← MSP
+     │
+     │
+     │   free stack space
+     │
+     ▼
+lower addresses
+```
+The function() needs stack space. When function() starts executing, it may need space for things such as:
+```text
+function()
+│
+├── local variables
+├── saved registers
+└── other temporary information
+```
+The CPU/compiler reserves some space on the stack. Because the stack grows downward:
+
+```text
+Before:
+
+0x20020000  ← MSP
+     │
+     │
+     ▼
+
+
+After reserving stack space:
+
+0x20020000
+     │
+     │
+0x2001FFF0  ← MSP
+     │
+     │
+     ▼
+Before: MSP = 0x20020000
+
+After: MSP = 0x2001FFF0
+
+MSP moves downward when stack space is allocated.
+```
+The area allocated for a particular function is called its **stack frame.**
+
+Example:
+
+```text
+RAM
+
+0x20020000
+────────────────
+   previous stack
+────────────────
+0x2001FFF0  ← MSP
+│
+│ function()'s
+│ stack frame
+│
+│ x
+│ y
+│ saved information
+│
+────────────────
+
+So, Stack
+     └── function()'s stack frame
+     
+When function() finishes, that stack frame is released. MSP moves back upward.
+```text
+Before function: MSP = 0x20020000
+function starts: MSP = 0x2001FFF0
+function returns: MSP = 0x20020000
+```
+
+**The function's generated code may need a stack frame, and the compiler generates instructions that adjust the stack pointer to reserve that space.**. Not every function call requires a stack frame. 
+
+For example,
+```c
+int add(int a, int b)
+{
+    return a + b;
+}
+```
+The compiler may be able to perform the entire function using registers without allocating local stack space.
+
+Now, lets quickly calculate, how much does the MSP move. Suppose, Before function MSP = `0x20010000`. Lets consider a function which needs 16 bytes of stack space. Since the stack grows downward, what will the MSP become? What address will it point when the function is returned.
+
+Before function MSP = 0x20010000 (hex))
+Required Stack space = 16 bytes (decimal) = 0x10  (hex)
+MSP = 0x20010000 - 0x 10 = 0x2000FFF0 (Stack grows lower). MSP moved by 16 bytes, not 16 bits. 
+
+After function :
+MSP = 0x20010000 + 0x 10 = 0x20010010 (Stack shrinks)
