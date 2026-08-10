@@ -375,3 +375,199 @@ MSP = 0x20010000 - 0x 10 = 0x2000FFF0 (Stack grows lower). MSP moved by 16 bytes
 
 After function :
 MSP = 0x20010000 + 0x 10 = 0x20010010 (Stack shrinks)
+            
+Now that, we understood, how MSP moves as the Stack grows and shrinks as the function call and returns, lets see ***how the CPU actually changes the MSP.***
+
+We already knew that MSP is one of the CPU's core register. That means the CPU currently has the number 0x20010000 stored inside its MSP register. RAM and MSP are two different things, MSP is inside the CPU and not a memory location in RAM. RAM doesnt change MSP. Only a CPU instruction can changes MSP. For example, there are instructions that explicitly modify the Stack pointer. 
+
+Example : ```asm SUB SP, SP, #4``` meaning to take the current value of SP, subtract 4, and put the result back into SP.  If SP = `SP = 0x20010000`. Then the CPU performs `0x20010000 - 4 = 0x2000FFFC` and stores that result back into the SP register. This operation happens inside the Cortex-M4 CPU, using its internal hardware (ALU). We haven't talked about what is stored in that RAM location yet. Changing MSP and storing something in the stack are two separate operations. **MSP is a CPU register → ALU calculates the new value → new value goes back into MSP.** The CPU's stack pointer is currently pointing at RAM address `0x2000FFFC` (the address of the current stack location). Incase, if we want to store something ((suppose R4 = 25) in this particular location in RAM, then we have to say to store the value 25 at the RAM address currently held by MSP. So basically MSP = `0x2000FFFC`which is an address of a Stack in RAM and in this address , we want to store the value 25. 
+
+So instead of manually doing: 
+1. Move MSP downward
+2. Store a register value at the new address, 
+the Cortex-M4 provides an instruction that does the stack operation for us ```asm PUSH {R4}```.
+
+We just learnt that the stack grows downward, and MSP moves toward lower addresses when we put something on the stack. The ARM Cortex-M4 provides instructions specifically for this. One of them is **PUSH**, which basically means to save one or more register values onto the stack.
+
+Example: 
+
+Suppose:`MSP = 0x20010000`. And we execute: `PUSH {R4}`. We're asking the CPU to save the current value of R4 on the stack and MSP updated to point to it. Since R4 is 32 bits (4 bytes). Therefore, the stack needs 4 bytes. The MSP moves downward : 
+
+Before: `0x20010000`  ← MSP
+After: `0x2000FFFC`← MSP
+
+Thats because , `0x20010000 - 4 = 0x2000FFFC`. And the value of R4 is stored there:
+```text
+RAM
+0x20010000
+──────────────
+0x2000FFFC  ← MSP
+│
+│ R4 value
+│
+──────────────
+```
+
+So conceptually:
+
+```text
+PUSH {R4}
+
+R4
+ │
+ │  copy value
+ ▼
+Stack
+ │
+ ▼
+MSP moves downward
+
+Before:
+Before:
+
+CPU
+┌──────────────┐
+│ R4  = 25     │
+│ MSP = 0x20010000
+└──────────────┘
+
+RAM
+0x20010000   ?
+0x2000FFFC   ?
+
+After the stack operation:
+
+CPU
+┌──────────────┐
+│ R4  = 25     │
+│ MSP = 0x2000FFFC
+└──────────────┘
+              │
+              ▼
+RAM
+0x2000FFFC   25
+
+```
+So two things have happened:
+
+-   MSP moved to a new stack address.
+-   The value of R4 was stored in RAM at that stack location.
+
+MSP → tells CPU WHERE the stack location is and R4  → tells CPU WHAT value to save. `PUSH` combines those ideas into one stack instruction.
+But ***which happens first conceptually— MSP changing or R4 being written to RAM—and why the stack uses the address `0x2000FFFC` rather than `0x20010000`.
+
+We have: R4  = 25 and MSP = 0x20010000. PUSH {R4}
+
+The question is Why does the value end up at 0x2000FFFC instead of 0x20010000? 
+
+1. Thats because, Our Cortex M4 stack is a descending stack. When we need space for something, then the stack needs to move towards the lower address. R4 is a 32 bit register (4 bytes). Therefore, we need 4 bytes of stack space. Starting from `MSP = 0x20010000` we need to move down by 4 bytes, so the new stack location is `0x2000FFFC`
+
+2. Conceptually, the CPU changes from MSP = `0x20010000` to MSP = `0x2000FFFC`. Now MSP points to the newly allocated stack space.
+
+3. R4 gets stored there. R4 contains 25.  So CPU stores RAM[0x2000FFFC] = 25. So finially, MSP moved from `0x20010000` to MSP = `0x2000FFFC` and 25 is saved there.
+
+```
+1. Make room for R4
+       ↓
+2. Move MSP downward by 4 bytes
+       ↓
+3. Store R4 at the new stack location
+```
+```text
+Before PUSH:
+
+MSP
+ ↓
+0x20010000
+
+After PUSH: 
+PUSH {R4}
+     │
+     ├── stack needs 4 bytes
+     ↓
+MSP moves down
+     ↓
+0x2000FFFC -- MSP
+     │
+     └── R4 (25) stored here
+     
+MSP = 0x2000FFFC
+RAM[0x2000FFFC] = 25
+
+```
+R4 is a 32-bit general-purpose register. The CPU doesn't know whether the bits represent 25 or 1000 or an address or a pointer or part of a calculation or even characters / flags / other data. R4 = 0x00000019 represent decimal 25. But the CPU simply sees as 
+`00000000 00000000 00000000 00011001`
+
+
+The ```asm PUSH{R4}``` and `R4 = 25`is not about storing the value 25 directly in a RAM location. The reason we PUSH {R4} is not simply because RAM needs the value 25. It's because we may need to preserve the value that was already inside R4 while another function temporarily uses R4. For example, a C variable could eventually result in a memory store: ```c int x = 25; ``` and x may live in RAM. That's normal data storage. But that's NOT the main purpose of PUSH. Here's the situation where PUSH becomes important.
+
+Imagine we're running:
+
+```c
+main()
+{
+    function();
+}
+```
+Before calling function(), suppose the CPU has R4 = 25 . And 25 is important to main(). Now function() needs to use R4 for its own work. It might do R4 = 100. Now the original R4 = 25 is gone. That's a problem. So we have to save the old value of this register somewhere in Stack, before using R4 for something else. Hence we do ```asm PUSH{R4}```. Now the function can safely change R4 R4 = 100 since the old value is preserved in Stack. Later, as the function finishes, we can restiore it using ```asm POP{R4}. The saved value comes back to R4. R4 = 25. So after the function returns, the caller gets its original R4 value back.
+
+Here, we are using the stack as it gives functions a temporary, organized place to save CPU state. It's not primarily about storing application data like ```c counter = 25```. It's used when we neeed to temporarily give up this register, but we don't want to lose the value that was already there.
+
+
+```text
+R4 = important old value
+       │
+       │ PUSH
+       ▼
+Stack (Old value of R4 preserved in Stack)
+       │
+       │ function uses R4 
+       ▼
+R4 = temporary value of new function
+       │
+       │ POP (As new function returns)
+       ▼
+R4 = original value of old function
+
+```
+
+**What if we push multiple registers?**
+Suppose: 
+```text
+MSP = 0x20010000
+R4 = 25
+R5 = 100
+R6 = 0x12345678
+```
+when we execute ```asm PUSH {R4, R5, R6}` four 32-bit registers. And each register is 4 bytes. Therefore 3 registers × 4 bytes = 12 bytes
+
+So:
+Before: MSP = `0x20010000`
+After: MSP = `0x2000FFF4`
+because: 0x20010000 - 0xC = `0x2000FFF4`
+
+Memory conceptually becomes:
+
+```text
+RAM
+
+0x20010000
+──────────────
+     ...
+──────────────
+0x2000FFFC
+│ R4
+──────────────
+│ R5
+──────────────
+│ R6
+──────────────
+│ LR
+──────────────
+     ↑
+    MSP
+0x2000FFF0
+
+```
+When we study the ARM instruction behavior, lets deep dive more precisely into the exact oder of the registers in the memory. 
+
