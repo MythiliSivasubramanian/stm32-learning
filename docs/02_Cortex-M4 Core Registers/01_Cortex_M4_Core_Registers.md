@@ -613,3 +613,14 @@ RAM
 0x2000FFFC → 25   ← old stack data
 ```
 **The 25 doesn't necessarily get physically erased from RAM. The stack space is considered released because MSP moved away from it.**
+
+### PUSH vs POP:
+
+| Operation   | MSP       | RAM                  |
+| ----------- | --------- | -------------------- |
+| `PUSH {R4}` | decreases | R4 saved             |
+| `POP {R4}`  | increases | value loaded into R4 |
+
+### What about multiple registers?
+
+Suppose: R4 = 25, R5 = 100, R6 = 200 when we do ```asm PUSH {R4, R5, R6}``` We save 3 × 4 bytes = 12 bytes. Since we do PUSH, the address grows from higher address to lower address, ie MSP moves down from `0x20010000`to `0x2000FFF4`. ```asm POP{R4,R5,R6}``` restores the registers and releases those 12 bytes, MSP goes back (up) from `0x2000FFF4`to `0x20010000`. The old bits may still physically remain in RAM until something overwrites them.
