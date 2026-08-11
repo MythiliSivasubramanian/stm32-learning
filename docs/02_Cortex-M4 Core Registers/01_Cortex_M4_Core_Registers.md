@@ -571,3 +571,45 @@ RAM
 ```
 When we study the ARM instruction behavior, lets deep dive more precisely into the exact oder of the registers in the memory. 
 
+### What does POP actually do?
+
+The goal is to **take the saved value from the stack and put it back into R4 and the stack space that was being used must be released.** So MSP needs to move back upward.
+
+Before POP: `MSP = 0x2000FFFC`. There is one 32-bit value on the stack: 0x2000FFFC → 25. The register is 4 bytes. So when we remove it, `0x2000FFFC + 4 -> 0x20010000`.
+
+Therefore After POP:
+```text
+R4  = 25
+MSP = 0x20010000```
+
+Visually:
+
+```text
+
+             Before POP
+
+CPU                    RAM
+┌──────────────┐
+│ R4 = ???     │
+│              │
+│ MSP ───────────────► 0x2000FFFC
+└──────────────┘       ┌─────────┐
+                       │   25    │
+                       └─────────┘
+                       
+                       
+After:
+             After POP
+
+CPU
+┌──────────────┐
+│ R4 = 25      │
+│              │
+│ MSP =        │
+│ 0x20010000   │
+└──────────────┘
+
+RAM
+0x2000FFFC → 25   ← old stack data
+```
+**The 25 doesn't necessarily get physically erased from RAM. The stack space is considered released because MSP moved away from it.**
