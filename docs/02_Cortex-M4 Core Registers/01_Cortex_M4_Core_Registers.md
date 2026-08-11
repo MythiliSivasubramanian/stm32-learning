@@ -712,3 +712,34 @@ For example:
 MSP = 0x20020000
 PSP = 0x20018000
 ```
+
+Some question could arise like **Which one is the CPU actually using right now?  or Does the CPU use both stacks simultaneously for normal instructions? or Does it use one active stack pointer at a time?**
+
+For normal stack operations, the CPU uses one active stack pointer at a time.
+So if `MSP = 0x20020000`and `PSP = 0x20018000`, both registers contain valid addresses, but the CPU doesn't normally do both 
+`PUSH → MSP` and `PUSH → PSP`at the same time. Instead, it has to choose which stack pointer is active.
+
+```text
+              Cortex-M4
+                  │
+          Which stack to use?
+                  │
+          ┌───────┴───────┐
+          ▼               ▼
+        MSP             PSP
+    0x20020000       0x20018000
+    
+```
+***Only one is selected as the current stack pointer for Thread mode. The selection is controlled by the CONTROL register. There is one important exception, Handler mode always uses MSP.*** We will study more about later.
+
+```text
+Thread mode
+    │
+    ├── MSP  ← can use this
+    └── PSP  ← or this
+
+Handler mode
+    │
+    └── MSP  ← always
+```
+
