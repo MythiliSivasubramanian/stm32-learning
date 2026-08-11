@@ -624,3 +624,91 @@ RAM
 ### What about multiple registers?
 
 Suppose: R4 = 25, R5 = 100, R6 = 200 when we do ```asm PUSH {R4, R5, R6}``` We save 3 × 4 bytes = 12 bytes. Since we do PUSH, the address grows from higher address to lower address, ie MSP moves down from `0x20010000`to `0x2000FFF4`. ```asm POP{R4,R5,R6}``` restores the registers and releases those 12 bytes, MSP goes back (up) from `0x2000FFF4`to `0x20010000`. The old bits may still physically remain in RAM until something overwrites them.
+
+### PSP — Process Stack Pointer
+
+We already know:
+```text
+R13
+ │
+ ├── MSP
+ └── PSP
+```
+
+So MSP and PSP are not two separate physical registers like R4 and R5. They are two stack-pointer registers associated with R13.
+The Cortex-M4 can use either one as the active stack pointer depending on the processor's mode. 
+
+#### Why do we need a second stack pointer?
+
+The main reason is that we want to separate:
+
+1. The stack used by the operating system / privileged code from 
+2. The stack used by an application/task
+
+For example, imagine we're running FreeRTOS. There may be several tasks like Task A, Task B, Task C.  And each task needs its own stack.We don't want every task to use the same stack.
+
+```text
+RAM
+
+Task A stack
+──────────────
+
+Task B stack
+──────────────
+
+Task C stack
+──────────────
+```
+The **PSP** can point to the stack belonging to the currently running task. Meanwhile, the **MSP** can be reserved for the system/kernel/exception handling.
+
+The Cortex-M4 has different processor modes, and the actual stack-pointer selection depends on the CONTROL register and exception handling.
+
+#### Example :
+
+Suppose RAM contains:
+
+```text
+RAM
+
+0x20020000
+──────────────
+        ↑
+      MSP
+──────────────
+System stack
+──────────────
+
+
+Task stack
+──────────────
+        ↑
+      PSP
+──────────────
+
+We might have:
+
+MSP = 0x20020000
+PSP = 0x20018000
+
+Now the processor can have:
+
+MSP
+ ↓
+0x20020000
+
+for the main/handler stack, while:
+
+PSP
+ ↓
+0x20018000
+
+points into a task's stack.
+
+```
+**MSP and PSP are both capable of pointing into RAM. They are simply two different stack-pointer values.**
+
+For example:
+```text
+MSP = 0x20020000
+PSP = 0x20018000
+```
