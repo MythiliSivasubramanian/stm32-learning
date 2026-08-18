@@ -743,3 +743,86 @@ Handler mode
     └── MSP  ← always
 ```
 
+### R14 Link Register (LR)
+
+Suppose a function main() calls another function:
+
+```c
+main()
+{
+     other_function();
+}
+```
+
+The CPU needs some way to remember where to return in main(), once `other_function()` finishes. So, the link register (R14) holds the return address.
+
+Let's first understand the ARM instruction that creates this behavior. The important instruction is ```asm BL other_function``` Here, `BL`means `Branch with Link`. There are two things happening in a BL instruction.
+
+-    1. Save a return address in LR / R14
+-    2. Branch to the target function (other_function)
+
+When the processor calls other_function(), it needs to remember the address where execution should continue after other_function() returns. So that information will be stored in Link register or R14.
+
+The ARM instruction used for a normal function call is ```asm BL other_function```.  Then, when other_function() finishes, it can use LR to get back to the caller. A common return instruction is ```asm BX LR```.
+
+
+Suppose,
+```c
+main()
+{
+    other_function();
+}
+
+other_function()
+{
+    another_function();
+}
+```
+So the call chain is main() -> other_function() -> another_function(). So when other_function() calls another_function(), what does happen to the value currently stored in LR? B) It gets overwritten with the return information for other_function(). So the original return information for main() is lost unless other_function() saves it somewhere first. And this is where the stack becomes important. So if other_function() knows that it is going to call another_function(), it should save its current LR before executing ```asm BL another_function```. 
+
+The sequence is ,
+
+```text
+
+other_function()
+        │
+        │ LR = return address to main()
+        │
+        ↓
+    PUSH {LR}
+        │
+        │ LR is safely saved
+        ↓
+BL another_function
+        │
+        │ LR gets overwritten
+        ↓
+another_function()
+        │
+        ↓
+return
+        │
+        ↓
+    POP {LR}
+        │
+        │ original LR restored
+        ↓
+    BX LR
+        │
+        ↓
+main()
+```
+
+```text
+LR
+│
+└── register → temporarily holds return information
+
+Stack
+│
+└── memory → can save that LR when we need the register for another call
+```
+
+Suppose we have LR = 0x08000108 and  SP = 0x20001000. And the instruction is ```asm PUSH {LR}```.  R13 = SP, So SP tells us where the stack currently is.When we execute ```asm PUSH {LR}``` what would happen conceptually?  The value 0x08000108 is stored in RAM on the stack. After ```asm PUSH {LR}``` will the SP value change? Yes. It should move towards the lower address as we pushed something in stack. The Cortex-M stack grows downward, toward lower addresses.
+
+```asm POP{LR}```takes the value currently at the top of the stack and put it back into LR.
