@@ -992,3 +992,304 @@ R14 -> LR -> return information
 R15 -> PC -> current instruction flow
 
 ```
+
+
+### xPSR [Z, N, C, V]
+
+The xPSR (Program Status Register) is a 32-bit internal register inside the ARM Cortex-M4 core that tracks the status and health of our program. 
+
+While general-purpose registers (R0–R12) hold our variable data, the xPSR holds status flags that tells what just happened after an instruction executed (e.g., "Was the result negative?", "Did it overflow?").
+
+The "x" stands for three combined status sub-registers:
+-    APSR (Application PSR): Holds ALU condition flags (Negative, Zero, Carry, Overflow).
+-    IPSR (Interrupt PSR): Holds the current exception/interrupt number being processed.
+-    EPSR (Execution PSR): Tracks execution states like Thumb mode.
+    
+```text
+xPSR
+ │
+ ├── N -> Negative  (sign/negative result indicator)   
+ ├── Z -> Zero       (result is zero)  
+ ├── C -> Carry   (unsigned arithmetic carry) 
+ └── V -> Overflow  
+ 
+```
+```text
+CMP
+ │
+ ├── calculates comparison
+ │
+ └── updates xPSR flags
+          │
+          ▼
+       Z, N, C, V
+          │
+          ▼
+Conditional branch
+```
+
+Think of xPSR as a status register. While the CPU executes instructions, certain operations produce information about their result. 
+
+#### Z (Zero Flag)
+
+For example, suppose: ```text R0 = 10, R1 = 10```. The CPU compares them ```asm CMP R0, R1```. The result is ```text R0 - R1 = 0```. The CPU can record the result as zero. That information is represented by a flag in the processor's status register. (Z = Zero flag). 
+
+So conceptually,
+```text
+R0 = 10
+R1 = 10
+
+CMP R0, R1 
+     │
+     ▼
+10 - 10 = 0
+     │
+     ▼
+Z = 1
+     │
+     ▼
+BEQ equal
+     │
+     ▼
+Branch to "equal"
+
+```
+**The Zero flag becomes 1 when the result of the comparison/subtraction is zero.** And CMP does not change R0 or R1. It performs the comparison and updates the condition flags.
+Then a conditional branch can use that information ```asm BEQ somewhere``` ***BEQ means Branch if Equal*** and it can determine whether to branch based on the Zero flag.
+
+CMP produces the status -> xPSR holds the flags -> BEQ checks the relevant flag -> branch happens.
+
+#### N (Negative Flag)
+
+Suppose:
+```tex
+R0 = 10
+R1 = 20
+and CMP R0, R1
+10 - 20 = -10
+
+Now, 
+Z = 0   ← result is NOT zero
+N = 1   ← result is negative, hence 1
+
+```
+
+Suppose:
+
+R0 = 20 R1 = 10
+CMP R0, R1 
+20 - 10 = +10
+
+Therefore:
+N = 0     result is not negative
+Z = 0     result is not zero
+
+Notice that CMP is essentially doing a subtraction for the purpose of setting flags:
+
+```text
+CMP R0, R1
+     ↓
+   R0 - R1
+     ↓
+  ┌─────────────┐
+  │ N Z C V ... │
+  └─────────────┘
+       xPSR
+```
+It does not put 20 - 10 into another register. So after CMP R0, R1, we still have R0 = 20, R1 = 10 but the status information has been updated.
+
+#### C — Carry Flag
+
+The Carry flag is mainly about whether an unsigned arithmetic operation produces a carry out of the most significant bit.
+Let's start with a very simple unsigned addition.
+
+Suppose the CPU has R0 = 5, R1 = 3
+and executes ADD R0, R1
+Conceptually: 5 + 3 = 8
+
+There is no carry out from the most significant bit. So, for an addition that updates the flags `C = 0`
+
+Think about an 8-bit example first:
+
+```text
+
+1111 1111
++      1
+────────
+10000 0000       
+```
+**But an 8-bit register can only hold 0000 0000 and the extra 1 goes beyond the 8 bits. That extra bit is the carry out**.
+
+So conceptually:
+```text
+11111111
++       1
+─────────
+1 00000000
+↑
+carry out
+
+Therefore: C = 1
+
+```
+Lets consider an another example:
+
+```text
+
+     1111 1111
++    0000 0001
+     ─────────
+     1 0000 0000
+     ↑
+     carry out
+     
+```
+
+Because we're considering an 8-bit result, only the lower 8 bits (0000 0000) fit in the register. Result = 00000000
+Carry  = 1. So `C = 1`
+
+Now let's connect this back to Cortex-M4:
+The Cortex-M4 registers are 32 bits, not 8 bits.
+
+So the same idea applies at bit 31:
+
+```text
+
+  11111111111111111111111111111111
++                                1
+-----------------------------------
+1 00000000000000000000000000000000
+↑
+carry out of bit 31
+
+```
+The 32-bit register receives 00000000000000000000000000000000 while the extra carry is reflected in C = 1.
+
+Example :
+
+In the 32-bit case: 0xFFFFFFFF + 1. 
+0xFFFFFFFF is a 32-bit value because there are 8 hexadecimal digits F F F F F F F F. Each hex digit = 4 bits(F = 1111)
+ 
+Therefore : 0xFFFFFFFF = 1111 1111 1111 1111 1111 1111 1111 1111. That's all 32 bits set to 1.
+
+```text
+
+  1111 1111 1111 1111 1111 1111 1111 1111
++ 0000 0000 0000 0000 0000 0000 0000 0001
+-------------------------------------------
+1 0000 0000 0000 0000 0000 0000 0000 0000   (33 bits) 
+↑
+extra carry
+
+```
+
+The extra leftmost 1 (33rd bit) doesn't fit inside R0. The processor records it in the Carry flag (C).So Carry C = 1.
+R0 can fit 0000 0000 0000 0000 0000 0000 0000 0000 which is 0x00000000.  So Z = 1.
+
+```text
+
+C = 1
+└── There was an extra carry beyond bit 31
+
+Z = 1
+└── The 32-bit result is zero
+
+```
+**Two flags can be 1 at the same time.**
+
+#### V - (Overflow Flag)
+
+While `C (Carry Flag) is about unsigned arithmetic, Overflow Flag (V) is about signed arithmetic.
+
+Before understanding what an Overflow V flag represents, lets quickly understand about signed vs unsigned.
+
+Lets consider a 8 bit, 10000000. It is 128 in decimal. If we interpret it as unsigned then `10000000₂ = 128``. Now here's the key, the bits themselves have not changed. `10000000` it's still exactly the same 8 bits. But a computer can interpret those bits in different ways depending on whether we're treating the value as unsigned or signed.
+
+```text
+
+Same bits
+   │
+   ├── interpreted as unsigned -> 128
+   │
+   └── interpreted as signed   ->something else
+   
+```
+When we say an 8-bit number is signed, we want it to represent both: positive numbers + negative numbers. So instead of the unsigned range 0  to 255, an 8-bit signed system uses -128 to +127. And here is the interesting part 10000000 is interpreted as:   128     ← unsigned, -128    ← signed. The bits did not change. Only the interpretation changed.
+
+So now we have an important boundary:
+8-bit unsigned:
+```text
+00000000 ->  0
+        ...
+01111111 -> 127
+10000000 -> 128
+        ...
+11111111 -> 255
+```
+And for 8-bit signed numbers, the range is -128 -> +127
+
+Now what happens if we add 1?
+```text
+  0111 1111
++ 0000 0001
+-----------
+  1000 0000
+```
+The bits changed from `01111111`to `10000000`. As unsigned, that's `128`. But as signed, `10000000` represents `-128`. So if we were doing signed arithmetic `+127 + 1` we expected `+128` but the 8-bit signed system cannot represent `+128`.
+Instead, the bit pattern becomes `10000000 = -128`
+
+That is the first concrete example of signed overflow. And that is what the V flag is designed to tell the CPU about.
+
+For an 8-bit signed number, what is the largest positive value it can represent? +127
+
+For 8-bit signed values:
+
+```text
+smallest                         largest
+   ↓                                ↓
+ -128 ─────────────────────────── +127
+
+So: +127 is the largest positive signed value we can represent.
+
+```
+Matamatically, if we add 127 + 1 = 128, but 128 is outside the signed range -128 -> +127. So something has gone wrong from the signed-number perspective. And that's precisely what Overflow (V) is telling us. ***V = 1 means the signed arithmetic result could not be represented correctly in the available number of bits.***
+
+#### C (Carry Flag) vs V (Overflow Flag) :
+
+This is where the distinction becomes clearer:
+
+C -> "Did an unsigned carry go out?"
+V -> "Did signed arithmetic go outside its valid range?"
+
+They're asking different questions about the same bit operation.
+
+Let's do your first actual V calculation. We have 8 bits:
+
+```text
+  0111 1111         (+127 in signed,  127 in unsigned)
++ 0000 0001         (+1 in signed,    1 in unsigned)
+-----------
+  1000 0000          128 (when interepted as unsigned)
+                    -128 (when interepted as signed) but signed range is (-128 to 127)
+  
+```
+**Question A: If this was Unsigned, did it break?**
+
+Unsigned math expects 127 + 1 = 128. In unsigned bits, 1000 0000 is 128.
+Did anything fall off the left side? No. (It takes 9 bits to exceed 255).
+Result: `C = 0` (No unsigned carry happened. Everything is fine).
+
+**Question B: If this was Signed, did it break?**
+
+Signed math expects +127 + 1 = +128. But in signed 8-bit, +127 is the maximum positive limit!
+The bit pattern 1000 0000 actually represents -128.
+We added two positive numbers (+127$ and +1$) and got a negative result (-128).
+Result: `V = 1` (Signed math overflowed and gave a garbage sign).
+
+**Summary Table : Carry vs Overflow:**
+
+| Flag         | Focus   |  Question    |
+|--------------|---------|--------------------------------------------------|                                            
+| C (Carry)    | Unsigned| Did the number get bigger than the physical hardware register can hold?   |           
+| V (Overflow) | Signed  | Did the answer cross the sign boundary and flip from positive to negative (or vice versa)?|
+
