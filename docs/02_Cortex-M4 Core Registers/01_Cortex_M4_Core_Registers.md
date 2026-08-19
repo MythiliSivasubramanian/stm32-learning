@@ -56,9 +56,9 @@ Cortex-M4 Core Registers
 |-- General Purpose Registers (R0 - R12)
 |
 |-- Special Registers 
-    ├-- R13 → SP
-    ├── R14 → LR
-    ├── R15 → PC
+    ├-- R13 -> SP
+    ├── R14 -> LR
+    ├── R15 -> PC
 |
 |-- Program Status Registers
 |
@@ -380,7 +380,7 @@ Now that, we understood, how MSP moves as the Stack grows and shrinks as the fun
 
 We already knew that MSP is one of the CPU's core register. That means the CPU currently has the number 0x20010000 stored inside its MSP register. RAM and MSP are two different things, MSP is inside the CPU and not a memory location in RAM. RAM doesnt change MSP. Only a CPU instruction can changes MSP. For example, there are instructions that explicitly modify the Stack pointer. 
 
-Example : ```asm SUB SP, SP, #4``` meaning to take the current value of SP, subtract 4, and put the result back into SP.  If SP = `SP = 0x20010000`. Then the CPU performs `0x20010000 - 4 = 0x2000FFFC` and stores that result back into the SP register. This operation happens inside the Cortex-M4 CPU, using its internal hardware (ALU). We haven't talked about what is stored in that RAM location yet. Changing MSP and storing something in the stack are two separate operations. **MSP is a CPU register → ALU calculates the new value → new value goes back into MSP.** The CPU's stack pointer is currently pointing at RAM address `0x2000FFFC` (the address of the current stack location). Incase, if we want to store something ((suppose R4 = 25) in this particular location in RAM, then we have to say to store the value 25 at the RAM address currently held by MSP. So basically MSP = `0x2000FFFC`which is an address of a Stack in RAM and in this address , we want to store the value 25. 
+Example : ```asm SUB SP, SP, #4``` meaning to take the current value of SP, subtract 4, and put the result back into SP.  If SP = `SP = 0x20010000`. Then the CPU performs `0x20010000 - 4 = 0x2000FFFC` and stores that result back into the SP register. This operation happens inside the Cortex-M4 CPU, using its internal hardware (ALU). We haven't talked about what is stored in that RAM location yet. Changing MSP and storing something in the stack are two separate operations. **MSP is a CPU register -> ALU calculates the new value -> new value goes back into MSP.** The CPU's stack pointer is currently pointing at RAM address `0x2000FFFC` (the address of the current stack location). Incase, if we want to store something ((suppose R4 = 25) in this particular location in RAM, then we have to say to store the value 25 at the RAM address currently held by MSP. So basically MSP = `0x2000FFFC`which is an address of a Stack in RAM and in this address , we want to store the value 25. 
 
 So instead of manually doing: 
 1. Move MSP downward
@@ -453,7 +453,7 @@ So two things have happened:
 -   MSP moved to a new stack address.
 -   The value of R4 was stored in RAM at that stack location.
 
-MSP → tells CPU WHERE the stack location is and R4  → tells CPU WHAT value to save. `PUSH` combines those ideas into one stack instruction.
+MSP -> tells CPU WHERE the stack location is and R4  -> tells CPU WHAT value to save. `PUSH` combines those ideas into one stack instruction.
 But ***which happens first conceptually— MSP changing or R4 being written to RAM—and why the stack uses the address `0x2000FFFC` rather than `0x20010000`.
 
 We have: R4  = 25 and MSP = 0x20010000. PUSH {R4}
@@ -826,3 +826,169 @@ Stack
 Suppose we have LR = 0x08000108 and  SP = 0x20001000. And the instruction is ```asm PUSH {LR}```.  R13 = SP, So SP tells us where the stack currently is.When we execute ```asm PUSH {LR}``` what would happen conceptually?  The value 0x08000108 is stored in RAM on the stack. After ```asm PUSH {LR}``` will the SP value change? Yes. It should move towards the lower address as we pushed something in stack. The Cortex-M stack grows downward, toward lower addresses.
 
 ```asm POP{LR}```takes the value currently at the top of the stack and put it back into LR.
+
+
+So the complete chain is:
+```text
+
+```text
+main()
+ │
+ │ BL other_function
+ │
+ ↓
+other_function()
+ │
+ │ PUSH {LR}              // save return information to main()
+ │
+ │ BL another_function    // LR is overwritten
+ │
+ ↓
+another_function()
+ │
+ │ return
+ ↓
+other_function()
+ │
+ │ POP {LR}               // restore return information to main()
+ │
+ │ BX LR                 // return to main()
+ ↓
+main()
+```
+
+The key idea is:
+
+```text
+main()
+   │
+   │ BL other_function
+   ↓
+other_function()
+
+At this point:
+LR = "return to main()"
+
+   │
+   │ PUSH {LR}
+   ↓
+LR is safely saved on the stack
+
+   │
+   │ BL another_function
+   ↓
+LR = "return to other_function()"
+
+   │
+   ↓
+another_function() finishes
+
+   │
+   │ POP {LR}
+   ↓
+LR = "return to main()"   ← restored
+
+   │
+   │ BX LR
+   ↓
+main() continues
+```
+
+So the **reason for `PUSH {LR}`** is specifically:
+
+> `other_function()` needs to call another function, and that call will overwrite its LR. Therefore, it saves its original LR on the stack first.
+
+## R15 — Program Counter
+
+**The PC (Program Counter) tells the processor where it is executing in the program.**
+Imagine our program instructions are stored in Flash:
+
+```text
+Flash
+
+0x08000000    instruction 1
+0x08000004    instruction 2
+0x08000008    instruction 3
+0x0800000C    instruction 4
+0x08000010    instruction 5
+```
+If the processor is currently executing the instruction at `0x08000008`, then conceptually PC = `0x08000008`. ie, PC contains the address associated with the current instruction execution flow.
+
+For example, Suppose if PC = `0x08000020`, and the next instruction to execute is located at `0x08000024`, what is the processor going to do next? It would execute the instruction at 0x08000024, because the instructions are stored in the program's memory, and the PC controls the instruction-fetch flow.
+
+On Cortex-M4, the exact relationship between the visible PC value and the instruction currently being executed has pipeline/architectural details. We don't need that complication yet. For now, lets underdstand that, PC tells the CPU where the instruction execution flow is going.
+
+### PC and BL :
+
+Earlier, when a function call is made, we learnt about `Branch with Link (BL)` and it does two things.
+-    1. Save return information  in Link Register LR / R14 (LR -> remembers where to return)
+-    2. Branch to the function - PC changes with new function address (tells CPU where to execute)
+
+Suppose, LR = 0x08000108, PC = 0x08001000 and when we execute ```asm BX LR```, what would be the basic effect?
+PC changes to the address contained in LR because the processor uses the value in LR as the branch target.
+
+```text
+LR = 0x08000108
+        │
+        │ BX LR
+        ▼
+PC = 0x08000108
+So:
+
+LR -> tells the CPU WHERE TO RETURN
+PC -> tells the CPU WHERE TO EXECUTE
+
+```
+```c
+main()
+{
+    other_function();
+}
+```
+Conceptually:
+```text
+main()
+  │
+  │ BL other_function
+  │
+  ├────-> LR = return information
+  │
+  └────-> PC = other_function()
+             │
+             │ execute
+             │
+             │ BX LR
+             ↓
+          PC = return address
+             │
+             ↓
+        main() continues
+        
+And when there is a nested call:
+
+main()
+  │
+  │ BL other_function
+  ↓
+other_function()
+  │
+  │ PUSH {LR}
+  │
+  │ BL another_function
+  ↓
+another_function()
+  │
+  │ return
+  ↓
+other_function()
+  │
+  │ POP {LR}
+  │
+  │ BX LR
+  ↓
+main()
+
+R14 -> LR -> return information
+R15 -> PC -> current instruction flow
+
+```
