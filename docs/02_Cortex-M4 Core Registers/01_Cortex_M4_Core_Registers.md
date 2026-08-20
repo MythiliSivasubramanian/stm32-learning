@@ -1197,6 +1197,117 @@ Z = 1
 ```
 **Two flags can be 1 at the same time.**
 
+**C behaves differently for addition and subtraction on ARM/Cortex-M4. The key is to understand what the CPU is actually telling us**
+
+### Carry Flag C — Addition vs Subtraction
+
+The simplest statement to remember is:
+
+-    Addition: 
+     1. C = 1 means a carry came out of the most significant bit MSB.
+
+-    Subtraction: 
+
+     1.    C = 1 means NO borrow was needed.
+     2.   C = 0 -> borrow occurred.
+               
+**1. Addition — C = 1 means carry out**
+
+Take 8-bit arithmetic:
+
+```c
+  1111 1111
++ 0000 0001
+-----------
+1 0000 0000
+↑
+carry out           We have only 8 bits available. The result that fits in the 8-bit register is 0000 0000
+But there is an extra 1 outside bit 7. Therefore C = 1
+
+```
+So for addition:
+
+```text
+                 ADDITION
+                    │
+                    ↓
+        Did a carry leave bit 7?
+              /             \
+            YES              NO
+             ↓                ↓
+           C = 1            C = 0
+
+For a 32-bit Cortex-M4, replace bit 7 with bit 31.
+
+```
+**2. Subtraction — C = 1 means NO borrow**
+
+Now consider `5 - 3`.  In normal decimal arithmetic `5 - 3 = 2`. Did we need to borrow? No. Therefore, on ARM `C = 1`.
+If instead we calculate `3 - 5`, we cannot subtract 5 from 3 without borrowing. So `3 - 5` requires a borrow. Therefore `C = 0`
+
+So for subtraction:
+
+```text
+                 SUBTRACTION
+                      │
+                      ↓
+             Was a borrow needed?
+                /          \
+              NO            YES
+               ↓             ↓
+             C = 1         C = 0
+
+```
+
+**Why does ARM define it this way?**
+
+This becomes much clearer when we look at unsigned numbers. Suppose we're doing `5 - 3`, Since `5 ≥ 3` the subtraction is valid without going below zero. So ARM says `C = 1`
+
+Now `3 - 5`, since `3 < 5`, the unsigned subtraction needs a borrow. ARM says `C = 0`.
+
+Therefore, for unsigned subtraction, we can think:
+-    C = 1 -> the subtraction did not need to borrow.
+-    C = 0 -> the subtraction needed a borrow.
+
+Lets see how it does work with binary:
+
+```text
+
+Take `5 - 3`: 
+  0000 0101
+- 0000 0011
+------------
+  0000 0010
+  
+```
+No borrowing was necessary. Therefore `C = 1`. Now, lets check for `3 -5`,
+
+```text
+
+  0000 0011
+- 0000 0101
+
+We can't subtract the lower bits without borrowing from a higher position. So C = 0
+
+```
+This is especially important for unsigned comparisons. For example `CMP R0, R1` is essentially a subtraction `R0 - R1`
+
+If `R0 >= R1` then there is no unsigned borrow `C = 1`
+If `R0 < R1` then a borrow occurs `C = 0`
+
+That's why ARM conditional branches include:
+BCS / BHS → C = 1
+BCC / BLO → C = 0
+
+Lets learn about it later. 
+
+| Operation       | `C = 1` means      | `C = 0` means       |
+| --------------- | ------------------ | ------------------- |
+| **Addition**    | Carry out occurred | No carry out        |
+| **Subtraction** | **No borrow**      | **Borrow occurred** |
+
+**Flag C is primarily about unsigned arithmetic. Flag V is about signed overflow.**
+
 #### V - (Overflow Flag)
 
 While `C (Carry Flag) is about unsigned arithmetic, Overflow Flag (V) is about signed arithmetic.
@@ -1292,4 +1403,6 @@ Result: `V = 1` (Signed math overflowed and gave a garbage sign).
 |--------------|---------|--------------------------------------------------|                                            
 | C (Carry)    | Unsigned| Did the number get bigger than the physical hardware register can hold?   |           
 | V (Overflow) | Signed  | Did the answer cross the sign boundary and flip from positive to negative (or vice versa)?|
+
+Example: 
 
