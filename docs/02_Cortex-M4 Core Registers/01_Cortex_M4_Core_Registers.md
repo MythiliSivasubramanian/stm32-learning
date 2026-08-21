@@ -1514,3 +1514,94 @@ C = 0, Z = 0, N = 1, V = 0.
 |               | For subtraction: no borrow -> C = 1, borrow -> C = 0 |
 | V             | If mathematical signed result go outside the signed range? V = 0, else V = 1 |
 
+Now lets connect these flags to the instructions that actually use them. 
+
+#### CMP instruction
+
+Based on few examples above, `CMP instruction` conceptually performs subtraction . Eg. R0 - R1 is clear. Suppose, `R0 = 5`, `R1 = 5`. When CPU executes, `CMP R0, R1`, its `5 - 5 = 0`. Lets rewrite it in biniary.
+
+```text
+
+0000 0101           +5
+0000 0101   -       +5
+---------      
+0000 0000           0
+
+```
+The Result (8 bits) are 0, hence `Z = 1`. To calculate Carry Flag : Its Subtraction without borrow, hence `C = 1`. The MSB is 0, hence `N = 0`. The Subtraction of Signed (+5) from signed (+5) is 0, which is very well with the signed range `-128 to +127). Hence `V = 0`.
+
+-    Z = 1   -> result is zero
+-    C = 1   ->  subtraction happened without borrow
+-    N = 0   ->  MSB of result is 0
+-    V = 0   ->  signed result (+5 - +5 = 0) fits
+
+The instruction `CMP` does not update the result 0 into R0 or R1. ***The subtraction result is used to update the flags, but the result itself is discarded.*** It is conceptually:
+
+```
+text
+R0 - R1
+   ↓
+update N Z C V and result is discarded
+```
+So after ```asm CMP R0, R1```, we still have `R0 = 5 and R1 = 5` but `N = 0 ,Z = 1, C = 1, V = 0`. 
+
+That's why this works:
+
+```asm 
+CMP R0, R1
+BEQ equal
+```
+Because CMP made:
+
+```text
+R0 - R1 = 0
+       ↓
+     Z = 1
+       ↓
+     BEQ
+       ↓
+   branch to equal
+```
+
+Now, lets do the opposite. CMP R0, R1. And R0 is 3 and R1 is 7. (3 - 7 ). Lets write it in binary.
+
+```text
+     0000 0011  (3)
+-    0000 0111  (7)
+     -----------
+     1111 1100  (-4)
+ 
+ In ARM assembly, the CMP R0, R1 instruction calculates R0 - R1 to update the Application Program Status Register (APSR) flags without saving the numerical result to a destination register.
+ 
+ Step-by-Step Binary Subtraction (via 2's Complement Addition):
+ 
+ ```text
+  0000 0011  (3)
+- 0000 0111  (7)
+-----------
+  1111 1100  (-4)
+```
+
+In ARM assembly, the `CMP R0, R1` instruction calculates `R0 - R1` to update the Application Program Status Register (APSR) flags without saving the numerical result to a destination register.
+
+**Step-by-Step Binary Subtraction (via 2's Complement Addition):**
+
+1. **Find 2's complement of R1 (+7):**
+* Invert bits: `1111 1000`
+* Add 1: `1111 1001` (-7)
+
+
+2. **Add to R0 (+3):**
+```text
+  0000 0011  (+3)
++ 1111 1001  (-7)
+-----------
+  1111 1100  (-4 in 2's complement)
+```
+
+**Condition Code Flags Set:**
+
+* **Negative (N = 1):** The most significant bit (MSB) is `1`, indicating a negative result.
+* **Zero (Z = 0):** The result is non-zero.
+* **Carry (C = 0):** ARM uses the "addition with inverted carry" convention for subtraction. No carry-out occurred during the addition, which indicates a borrow was required (`R0 < R1`).
+* **Overflow (V = 0):** No signed overflow occurred (subtracting two positive numbers resulting in a negative number is valid).
