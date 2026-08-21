@@ -1406,3 +1406,111 @@ Result: `V = 1` (Signed math overflowed and gave a garbage sign).
 
 Example: 
 
+**Carry but NO Overflow**
+
+Let's use 8-bit numbers to keep the calculation simple.
+
+```text
+
+  1111 1111
++ 0000 0001
+------------
+1 0000 0000
+
+```
+
+The 8-bit register can keep only `0000 0000` and the extra 1 is outside the register. Hence, `C = 1`and `Z = 0` and 
+`N = 0`. To check Overflow V Flag, let's look at signed interpretation.
+
+```text
+
+1111 1111 = -1
+0000 0001 = +1
+
+```
+So `-1 + 1 = 0`.  0 fits perfectly inside the signed range `-128 -> +127`. Therefore `V = 0`.
+
+In above example, We had a carry, but there was no signed overflow. That's because `Unsigned 255 + 1 = 256` doesn't fit in 8 bit, hence `C = 1`. But `Signed `-1 + 1 = 0` fits, hence `V = 0`. So **Carry does NOT automatically mean overflow.**
+
+C = 1, Z = 0, N = 0, V = 0.
+
+**Example 2 — Overflow but NO Carry**
+
+```text
+
+  0111 1111
++ 0000 0001
+------------
+  1000 0000
+  ↑
+MSB
+
+```
+There is no extra 9th bit, so `C = 0`. Result is not zero, so `Z = 0`. The MSB is 1, so `N = 1`. Now lets calculate Overflow :
+
+```
+
+Before the operation:
+0111 1111 = +127
+0000 0001 = +1
+
+So mathematically : +127 + +1 = +128
+
+```
+But 8-bit signed numbers can only represent `-128 → +127`. +128 doesn't fit. Hence, `V = 1`. The hardware gives us 
+`1000 0000` which, when interpreted as signed, is `-128`. So `+127 + 1` has wrapped around to `-128`. 
+
+C = 0, Z = 0, N = 1, V = 1.
+
+**Example 3 — Neither Carry nor Overflow**
+
+```text
+
+  0000 0101             +5
++ 0000 0011             +3
+------------
+  0000 1000             +8
+  
+```
+There is no extra 9th bit, so `C = 0`. Result is not zero, so `Z = 0`. The MSB is 0, so `N = 0`. +8 fits in `-128 -> +127`, so `V = 0`. 
+
+C = 0, Z = 0, N = 0, V = 0.
+
+**Example 4 — Subtraction with NO borrow**
+
+```text
+
+  0000 0101         5
+- 0000 0011         3
+------------
+  0000 0010         2
+  
+```
+`5 - 3`, no borrow was required, hence `C = 1`.  Result is not zero, so `Z = 0`. The MSB is 0, so `N = 0`. +2 fits in `-128 -> +127`, so `V = 0`. 
+
+C = 1, Z = 0, N = 0, V = 0.
+
+**Example 5 — Subtraction WITH borrow**
+
+```text
+
+  0000 0011         3
+- 0000 0101         5
+------------
+  1111 1110         -2 signed 
+  
+```
+`3 - 5`, requires borrow, hence `C = 0`.  Result is not zero, so `Z = 0`.  +2 fits in `-128 -> +127`, so `V = 0`. The resulting 8-bit pattern is `1111 1110`is `-2`as signed. And mathematically `+3 - +5 = -2`, So the signed result is perfectly valid. Therefore `V = 0`. The result has MSB 1, so `N = 1`. 
+
+C = 0, Z = 0, N = 1, V = 0.
+
+**Summary :**
+
+| Flag          | Desc  |
+| ------------- | ------------------------------------ |
+| N             | If MSB = 1, then N = 1, else N = 0  |
+| Z             | If final result all zeros? then Z = 1, else Z = 0  |
+| C             | Addition: If a carry come out of the MSB? then C = 1, else C = 0
+|               | For subtraction: no borrow -> C = 1, borrow -> C = 0 |
+| V             | If mathematical signed result go outside the signed range? V = 0, else V = 1 |
+
