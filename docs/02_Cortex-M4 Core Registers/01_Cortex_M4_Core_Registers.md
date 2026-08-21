@@ -1604,4 +1604,4 @@ In ARM assembly, the `CMP R0, R1` instruction calculates `R0 - R1` to update the
 * **Negative (N = 1):** The most significant bit (MSB) is `1`, indicating a negative result.
 * **Zero (Z = 0):** The result is non-zero.
 * **Carry (C = 0):** ARM uses the "addition with inverted carry" convention for subtraction. No carry-out occurred during the addition, which indicates a borrow was required (`R0 < R1`).
-* **Overflow (V = 0):** No signed overflow occurred (subtracting two positive numbers resulting in a negative number is valid).
+* **Overflow (V = 0):** Overflow (V = 0): No signed overflow occurred because the mathematical result, +3 - +7 = -4, is within the signed 8-bit range of -128 to +127.
