@@ -1605,3 +1605,15 @@ In ARM assembly, the `CMP R0, R1` instruction calculates `R0 - R1` to update the
 * **Zero (Z = 0):** The result is non-zero.
 * **Carry (C = 0):** ARM uses the "addition with inverted carry" convention for subtraction. No carry-out occurred during the addition, which indicates a borrow was required (`R0 < R1`).
 * **Overflow (V = 0):** Overflow (V = 0): No signed overflow occurred because the mathematical result, +3 - +7 = -4, is within the signed 8-bit range of -128 to +127.
+
+#### Conditional Branches
+
+**BEQ ** BEQ label means `Branch if Equal` Condition `Z = 1`. Because `R0 - R1 = 0` means `R0 == R1`. 
+**BNE** ```asm BNE label```meams `Branch if Not Equal` Condition `Z = 0` Because `R0 - R1 ≠ 0` means `R0 != R1`
+so ```text
+CMP R0, R1
+     ↓
+   N Z C V
+     ↓
+BEQ/BNE
+```
