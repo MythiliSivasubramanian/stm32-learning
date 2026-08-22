@@ -1610,10 +1610,44 @@ In ARM assembly, the `CMP R0, R1` instruction calculates `R0 - R1` to update the
 
 **BEQ ** BEQ label means `Branch if Equal` Condition `Z = 1`. Because `R0 - R1 = 0` means `R0 == R1`. 
 **BNE** ```asm BNE label```meams `Branch if Not Equal` Condition `Z = 0` Because `R0 - R1 ≠ 0` means `R0 != R1`
-so ```text
+so 
+```text
 CMP R0, R1
      ↓
    N Z C V
      ↓
 BEQ/BNE
 ```
+
+#### unsigned comparisons using C
+**BCS Branch if Carry Set** 
+That means:
+```text
+C = 1 → branch
+C = 0 → don't branch
+```
+Remember our subtraction rule:
+```text
+After subtraction:
+
+C = 1 → NO borrow
+C = 0 → borrow
+```
+
+Suppose: R0 = 7,  R1 = 3 and ```asm CMP R0, R1  BCS higher_or_equal``` We already know `7 - 3 = 4`. Therefore `C = 1`
+```text
+CMP R0, R1
+      ↓
+7 - 3 = 4
+      ↓
+No borrow
+      ↓
+C = 1
+      ↓
+BCS
+      ↓
+Branch taken
+
+BCS = Branch if Carry Set = branch if C = 1.
+```
+And because after subtraction C = 1 means no borrow, BCS can be useful for unsigned ≥ comparisons.
