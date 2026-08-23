@@ -1710,3 +1710,42 @@ C = 1?
    ↓
 yes → branch
 ```
+**BHI  Branch if Higher (unsigned):**
+
+Its condition is `C = 1 AND Z = 0`. Because:
+```text
+C = 1 → no borrow → R0 ≥ R1 unsigned
+Z = 0 → R0 ≠ R1
+Z = 1 → result is zero → R0 = R1
+```
+Together `R0 > R1`. So if we want R0 > R1, we need:
+```text
+R0 ≥ R1
+    AND
+R0 ≠ R1 which means `R0 > R1`. 
+```
+***Example**
+R0 = 7, R1 = 3. ```asm CMP R0, R1```. We already calculated `7 - 3 = 4`. So , C = 1 and Z = 0.
+
+Therefore:
+```text
+C = 1 AND Z = 0
+       ↓
+     TRUE
+       ↓
+BHI → branch
+```
+So: 7 is higher than 3 → branch.
+
+**Example 2**
+Suppose R0 = 7 and R1 = 7.  We know `7 - 7 = 0` Therefore C = 1 and Z = 1. Now: BHI higher. But BHI requires: C = 1 AND Z = 0
+But we have: C = 1 ← no borrow, Z = 1  ← result is zero. Hence BHI is not taken. 
+C = 1 alone tells us: R0 ≥ R1 (unsigned)
+But we want: R0 > R1
+So we additionally require: Z = 0
+
+Therefore:
+```text
+BHI = C = 1 AND Z = 0
+    = unsigned R0 > R1
+```
