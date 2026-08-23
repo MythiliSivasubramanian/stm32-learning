@@ -1749,3 +1749,19 @@ Therefore:
 BHI = C = 1 AND Z = 0
     = unsigned R0 > R1
 ```
+
+**BLS = Branch if Lower or Same (Unsigned)**
+It is essentially the opposite of BHI.  BHI `C = 1 AND Z = 0` means `R0 > R1   (unsigned)`. 
+BLS `C = 0 OR Z = 1 ` means `R0 <= R1   (unsigned)`
+
+Because: 
+```text
+C = 0 → borrow → R0 < R1
+Z = 1 → equal → R0 = R1
+
+Together:
+
+R0 < R1  OR  R0 = R1
+        ↓
+     R0 <= R1
+```
