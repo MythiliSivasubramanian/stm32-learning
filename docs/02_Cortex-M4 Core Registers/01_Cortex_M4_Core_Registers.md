@@ -1651,3 +1651,62 @@ Branch taken
 BCS = Branch if Carry Set = branch if C = 1.
 ```
 And because after subtraction C = 1 means no borrow, BCS can be useful for unsigned ≥ comparisons.
+
+**BCC Branch if Carry Clear:**
+
+```text
+C = 0 → branch
+C = 1 → don't branch
+````
+
+Suppose: `R0 = 3, R1 = 7`
+```asm
+CMP R0, R1
+BCC lower
+``` And we know 3 - 7 = -4 and C = 0
+
+```text
+R0 = 3
+R1 = 7
+
+CMP R0, R1
+      ↓
+3 - 7 = -4
+      ↓
+Borrow required
+      ↓
+C = 0
+      ↓
+BCC
+      ↓
+Branch taken
+```
+
+```text
+| Instruction | Meaning               | Condition |
+| ----------- | --------------------- | --------- |
+| `BCS`       | Branch if Carry Set   | `C = 1`   |
+| `BCC`       | Branch if Carry Clear | `C = 0`   |
+
+```
+And because we're using CMP (subtraction):
+```text
+C = 1 → no borrow → R0 ≥ R1  (unsigned)
+C = 0 → borrow    → R0 < R1  (unsigned)
+```
+**BCS does not literally mean "R0 is higher or equal.** Its actual definition is simply: `BCS → branch when C = 1.`
+The unsigned comparison interpretation comes from the fact that CMP performed a subtraction. So:
+```text
+CMP R0, R1
+BCS label
+```
+can be understood as:
+```text
+R0 - R1
+   ↓
+no borrow?
+   ↓
+C = 1?
+   ↓
+yes → branch
+```
