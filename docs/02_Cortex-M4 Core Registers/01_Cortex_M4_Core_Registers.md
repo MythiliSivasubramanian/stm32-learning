@@ -1652,6 +1652,25 @@ BCS = Branch if Carry Set = branch if C = 1.
 ```
 And because after subtraction C = 1 means no borrow, BCS can be useful for unsigned ≥ comparisons.
 
+**BCS / BHS — Unsigned ≥ Unsigned ≥**
+Condition: C = 1. Meaning:   R0 >= R1
+
+Example:
+```text
+R0 = 7
+R1 = 3
+
+7 - 3 = 4
+C = 1
+```
+Branch :
+```
+BCS = Branch if Carry Set
+BHS = Branch if Higher or Same
+
+They're different names for the same condition.
+```
+
 **BCC Branch if Carry Clear:**
 
 ```text
@@ -1694,6 +1713,21 @@ And because we're using CMP (subtraction):
 C = 1 → no borrow → R0 ≥ R1  (unsigned)
 C = 0 → borrow    → R0 < R1  (unsigned)
 ```
+
+**BCC / BLO — Unsigned <:**
+Condition: C = 0
+Meaning:   R0 < R1
+Example: R0 = 3 and R1 = 7. 3 - 7 = -4
+borrow → C = 0
+
+Branch
+```text
+BCC = Branch if Carry Clear
+BLO = Branch if Lower
+
+Again, same condition.
+```
+
 **BCS does not literally mean "R0 is higher or equal.** Its actual definition is simply: `BCS → branch when C = 1.`
 The unsigned comparison interpretation comes from the fact that CMP performed a subtraction. So:
 ```text
@@ -1765,3 +1799,44 @@ R0 < R1  OR  R0 = R1
         ↓
      R0 <= R1
 ```
+**Example:**
+R0 = 3 and R1 = 7 ```asm CMP R0, R1```.
+
+Conceptually: `3 - 7 = -4`. 
+
+Therefore:
+```text
+C = 0  → borrow occurred
+Z = 0  → result is not zero
+```
+
+Now check BLS. ```asm BLS lower_or_same```. Its condition is `C = 0 OR Z = 1`. 
+
+We have: 
+```text
+C = 0 
+Z = 0
+```
+Because OR only needs one condition to be true:
+```text
+C = 0 OR Z = 1
+     ↓
+   TRUE
+
+Therefore: BLS → branch is taken. 
+```
+
+Now we have :
+```text
+BHI → C = 1 AND Z = 0 → R0 > R1
+BLS → C = 0 OR  Z = 1 → R0 ≤ R1
+
+These are opposites:
+
+R0 > R1
+   ↕
+R0 ≤ R1
+```
+#### Signed comparisons
+Here N and V become important.
+
