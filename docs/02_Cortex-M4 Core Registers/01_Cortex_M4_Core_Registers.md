@@ -2069,3 +2069,150 @@ Result: Branch Taken
     BCS / BCC                     BGE / BLE
 
 ```
+
+#### Q flag — Saturation
+The Q flag is bit 27 of APSR/xPSR . We already know that N, Z, C, V are condition flags produced by normal arithmetic operations. But Q is different. So lets understand what saturation means. Normally, when a number becomes too large for the available number of bits, it wraps around.
+
+For example, imagine an 8-bit signed number. Its range is -128 to +127. Suppose we want to calculate `120 + 20 = 140`, but 140 cannot fit into a signed 8-bit number. With normal arithmetic, we get overflow/wraparound.
+
+With saturation arithmetic, instead we say `120 + 20 = 127` We clamp the result to the maximum representable value.
+
+Likewise `-120 + (-20) = -140` cannot fit, so saturation gives `-128`
+```text
+                 Saturation
+                     │
+        ┌────────────┴────────────┐
+        ↓                         ↓
+too large                    too small
+        ↓                         ↓
+maximum value               minimum value
+```
+Saturation arithmetic is particularly useful in things like Digital signal processing, Audio processing, Motor/control algorithms, Image processing, Fixed-point mathematics. Imagine an audio sample that must stay between `-32768` and `+32767`. If an operation produces 40000, we don't necessarily want it to wrap around to some negative number. We may instead want `40000` to the maximum possible limit `32767`. That's saturation.
+
+So what does the Q flag in APSR actually tell us? Q = 1 indicates that a saturation condition has occurred. ie, result exceeds maximum -> result is saturated -> Q = 1. The Q flag acts somewhat like a sticky indication that saturation has occurred. "Sticky" is important. **Once Q becomes 1, it generally stays 1 until explicitly cleared.** It isn't simply recalculated to 0 after the next ordinary arithmetic instruction in the way Z/N/C/V can be.
+
+For Cortex-M4, the Q flag is not part of the normal ADD/ADDS overflow example. To demonstrate all five APSR flags together, we'll use the same arithmetic result to understand N/Z/C/V, and then separately show how Q behaves with a saturating instruction.
+
+### APSR — Complete Example
+
+The APSR contains these important condition flags:
+```text
+Bit:    31    30    29    28    27
+        ┌─────┬─────┬─────┬─────┬─────┐
+        │  N  │  Z  │  C  │  V  │  Q  │
+        └─────┴─────┴─────┴─────┴─────┘
+N → Negative
+Z → Zero
+C → Carry
+V → Signed overflow
+Q → Saturation occurred
+```
+
+**Example 1 — N, Z, C, V Flags**
+
+Let's use 8-bit arithmetic just to make the bits easy to see.
+```text
+  0110 0100    (+100)
++ 0011 0010    (+50)
+------------
+  1001 0110
+```
+Mathematically `100 + 50 = 150`.  But an 8-bit signed number can represent only between -128 to +127.
+Now let's examine each flag individually.
+**N — Negative flag :**
+The result's MSB is 1, so the result is interpreted as negative in signed two's-complement representation. Hence N = 1. N simply copies the result's most significant bit.
+
+N does not tell us whether signed overflow happened. It only tells us the sign bit of the result.
+
+**Z — Zero flag :**
+Our result is `1001 0110`. It is not zero. Therefore `Z = 0`. Z = 1 only when the complete result is 0. If Result is 0000 0000 then Z = 1, if 
+anything else otherthan 0, then Z = 0.
+
+**C — Carry flag :**
+Look at the addition:
+```text
+  0110 0100
++ 0011 0010
+------------
+  1001 0110
+```
+There is no carry out of bit 7. No carry was produced beyond the most significant bit. Therefore C = 0. And remember C is about unsigned carry-out. If we interpret the operands as unsigned 100 + 50 = 150 and 150 fits inside an unsigned 8-bit number 0 ... 255 so there is no carry-out.
+
+**V — Overflow flag :**
+Here both operands are positive: 0110 0100 → (100) positive) and 0011 0010 → (50) positive. But the result has MSB 1, 1001 0110 → negative
+So positive + positive → negative. That cannot happen in valid signed arithmetic without overflow. Therefore, V = 1, Signed overflow occurred.
+
+The mathematical result is +150 but the maximum signed 8-bit value is +127
+So after the ordinary addition:
+```text
+  0110 0100
++ 0011 0010
+------------
+  1001 0110
+```
+Q	—	Ordinary addition isn't a saturation operation
+
+So, N = 1, Z = 0, C = 0, V = 1.
+
+**Example 2 — Q flag / Saturation :**
+
+Now let's specifically demonstrate Q. Suppose a saturating signed 8-bit addition performs 100 + 50. Mathematical result is 150
+But signed 8-bit maximum = +127.
+Therefore, instead of wrapping around:
+```text
+150
+   ↓
+0111 1111
+   ↓
++127
+
+The result is saturated to +127. And Q = 1 because saturation occurred.
+```
+So:
+- Mathematical result = +150
+- Representable result = +127
+- Saturation occurred = YES
+- Q = 1
+What makes Q different? N/Z/C/V describe properties of the arithmetic result.
+Q tells us: **A saturating arithmetic operation encountered a value that could not be represented and therefore had to be saturated. And Q is sticky:**
+```text
+Q = 0
+   ↓
+saturation occurs
+   ↓
+Q = 1
+   ↓
+stays 1 until explicitly cleared
+```
+#### Overview APSR:
+APSR — Application Program Status Register (Cortex-M4) 
+
+Bit 31 → N : Negative
+    Set when the result's MSB is 1.
+    Indicates the sign bit of the result.
+
+Bit 30 → Z : Zero
+    Set when the result is exactly 0.
+
+Bit 29 → C : Carry
+    Set when an addition produces a carry out of the most significant bit.
+    For subtraction, it has a related borrow/no-borrow interpretation.
+    C is associated with unsigned arithmetic.
+
+Bit 28 → V : Overflow
+    Indicates signed arithmetic overflow.
+    Example:
+        positive + positive → negative
+        negative + negative → positive
+
+Bit 27 → Q : Saturation
+    Set when a saturating arithmetic operation produces a value outside the representable range and the result is saturated to the maximum/minimum.
+    Q is sticky and remains set until explicitly cleared.
+    
+The four flags we are able to distinguish instantly:
+- N → Is the result's MSB bit 1?
+- Z → Is the result zero?
+- C → Did unsigned carry/borrow condition occur?
+- V → Did signed overflow occur?
+- Q → Did a saturation operation have to clamp the result?
+
