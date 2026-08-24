@@ -1004,15 +1004,136 @@ The "x" stands for three combined status sub-registers:
 -    APSR (Application PSR): Holds ALU condition flags (Negative, Zero, Carry, Overflow).
 -    IPSR (Interrupt PSR): Holds the current exception/interrupt number being processed.
 -    EPSR (Execution PSR): Tracks execution states like Thumb mode.
-    
+
+But when we refer to xPSR, we're looking at a combined view of these status fields. These are not 3 physically separate registers
 ```text
-xPSR
+                 xPSR
+┌──────────────────────────────────────────────┐
+│                  32 bits                     │
+├───────────────┬───────────────┬──────────────┤
+│     APSR      │     IPSR      │     EPSR     │
+│ condition     │ exception     │ execution    │
+│ flags         │ number        │ state        │
+└───────────────┴───────────────┴──────────────┘
+This drawing is conceptually useful, not the actual bit layout. The three parts overlap in the 32-bit xPSR.
+```
+### The Complete 32-Bit `xPSR` Bit Layout
+
+So which bits belong to which part among APSR, IPSR; EPSR?
+
+```text
+ Bit:   31  30  29  28  27  26  25  24  23                16  15          10   9   8                  0
+      ┌───┬───┬───┬───┬───┬───┬───┬───┬──────────────────┬──────────────┬───┬──────────────────┐
+      │ N │ Z │ C │ V │ Q │ ICI / IT  │ T │     Reserved     │   ICI / IT   │ 0 │   ISR_NUMBER     │
+      └───┴───┴───┴───┴───┴───┴───┴───┴──────────────────┴──────────────┴───┴──────────────────┘
+View: │<───── APSR ──────>│<── EPSR ─>│                      │<── EPSR ────>│   │<──── IPSR ──────>│
+```
+
+### Bit-by-Bit Mapping Table
+
+| Bit Range | Field Name | View | Description |
+| --- | --- | --- | --- |
+| **Bit 31** | **N** (Negative) | **APSR** | `1` if result is negative, `0` if positive/zero |
+| **Bit 30** | **Z** (Zero) | **APSR** | `1` if result is zero, `0` if non-zero |
+| **Bit 29** | **C** (Carry / Borrow) | **APSR** | `1` on unsigned addition carry / no borrow on subtraction |
+| **Bit 28** | **V** (Overflow) | **APSR** | `1` if signed operation exceeded valid bounds |
+| **Bit 27** | **Q** (Sticky Saturation) | **APSR** | `1` if SSAT/DSAT instruction saturated (DSP extensions) |
+| **Bits 26:25** | **ICI / IT** (Top bits) | **EPSR** | Holds top bits of If-Then state or multi-cycle LDM/STM state |
+| **Bit 24** | **T** (Thumb State) | **EPSR** | Always `1` on Cortex-M (Cortex-M only executes Thumb-2 instructions) |
+| **Bits 23:16** | *Reserved* | — | Unused / Reserved by ARM (reads as 0) |
+| **Bits 15:10** | **ICI / IT** (Low bits) | **EPSR** | Holds low bits of If-Then state or multi-cycle LDM/STM state |
+| **Bit 9** | *Reserved* | — | Unused / Reserved by ARM (reads as 0) |
+| **Bits 8:0** | **ISR_NUMBER** | **IPSR** | Active interrupt/exception ID (`0` = Thread mode, `15` = SysTick, `16+` = IRQ) |
+
+1. **APSR is strictly the top 5 bits `[31:27]`.** These are the only bits modified by `ADDS`, `SUBS`, `CMP`, etc.
+2. **EPSR is split across two non-contiguous chunks:** Bits `[26:24]` and bits `[15:10]`. It cannot be read directly via software (reading EPSR via `MRS` yields all zeros for security/architecture reasons).
+3. **IPSR is strictly the lower 9 bits `[8:0]`.** It stores the exact exception number currently being handled by the CPU hardware.
+
+The important thing is that APSR, IPSR and EPSR aren't simply three consecutive chunks of bits.
+```
+Then how can ARM call them three "registers"? The processor has one underlying status register representation, but ARM provides different views of selected bits. Think of it like a 32-bit box:
+
+```text
+                  xPSR
+        ┌─────────────────────┐
+        │ 31              0   │
+        └─────────────────────┘
+             ↑      ↑      ↑
+             │      │      │
+           APSR    IPSR    EPSR
+           view    view    view
+```
+Each named register exposes the bits relevant to that particular purpose.
+- APSR : Showsthe application-status bits.
+- IPSR : Shows the exception-status bits.
+- EPSR : Shows the execution-status bits.
+- xPSR : Shows the combined status.
+
+Who actually maintains these bits? This is the CPU hardware, not our C program.
+For example, suppose we execute: `ADDS R0, R1, R2`. The ALU performs the addition.
+The processor's hardware determines whether N = 1 or 0, Z = 1 or 0, C = 1 or 0, V = 1 or 0 and updates the corresponding APSR bits. Our software doesn't manually calculate and write those flags.
+
+Similarly, when an exception occurs:
+```text
+Normal code
+     │
+     │ interrupt
+     ▼
+Exception entry
+     │
+     ▼
+IPSR gets exception number
+
+The Cortex-M hardware updates the exception state. And EPSR contains execution-state information maintained by the processor.
+```
+
+Don't think APSR, IPSR and EPSR are three registers sitting somewhere in memory. They aren't normal memory-mapped registers like `GPIOA_ODR`,
+`GPIOA_IDR`. We can't do `*(uint32_t *)some_address = ...` to access xPSR. These are special CPU registers. The processor provides instructions and mechanisms to access certain parts of them.
+
+For example, in assembly we can use `MRS R0, APSR` to read the APSR view into R0 or `MRS R0, IPSR` to read the IPSR view, or `MRS R0, xPSR`
+to obtain the combined view.
+
+We need to be careful here because some bits are shared/overlapping between the views.
+For example:
+```text
+                 32-bit xPSR
+31                         0
+┌───────────────────────────┐
+│ N Z C V Q      ...        │
+└───────────────────────────┘
+ ↑
+ APSR
+```
+while IPSR is concerned with the exception number field in the lower bits. EPSR has execution-state fields in the middle/lower portions.
+So the three views are not three independent physical 32-bit values. That's why ARM documentation often shows something like:
+```text
+              xPSR
+        ┌──────────────┐
+        │ APSR │ EPSR │
+        │      │      │
+        │      │ IPSR │
+        └──────────────┘
+with fields positioned according to their actual bit locations.
+```
+```text
+                 CPU status
+                     │
+                    xPSR
+                     │
+       ┌─────────────┼─────────────┐
+       ↓             ↓             ↓
+     APSR           IPSR          EPSR
+   "flags"       "exception"    "execution"
+And the CPU hardware is responsible for maintaining these fields.
+```
+
+```text
+APSR
  │
  ├── N -> Negative  (sign/negative result indicator)   
  ├── Z -> Zero       (result is zero)  
  ├── C -> Carry   (unsigned arithmetic carry) 
  └── V -> Overflow  
- 
 ```
 ```text
 CMP
