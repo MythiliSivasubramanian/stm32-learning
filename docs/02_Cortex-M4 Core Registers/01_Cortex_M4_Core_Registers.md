@@ -1837,6 +1837,114 @@ R0 > R1
    ↕
 R0 ≤ R1
 ```
-#### Signed comparisons
+#### Signed comparisons :
 Here N and V become important.
 
+### `BGT` — Signed Greater Than (`>`)
+* **Condition:** `Z = 0` AND `N = V`
+* **Meaning:** `R0 > R1`
+
+```text
+R0 = +7
+R1 = +3
+
+7 - 3 = +4
+
+Flags: N = 0, V = 0, Z = 0
+
+Evaluation:
+  N = V (0 = 0) → Yes
+  Z = 0        → Yes
+
+Result: Branch Taken
+```
+### `BLT` — Signed Less Than (`<`)
+
+* **Condition:** `N ≠ V`
+* **Meaning:** `R0 < R1`
+
+```text
+R0 = +3
+R1 = +7
+
+3 - 7 = -4
+
+Flags: N = 1, V = 0
+
+Evaluation:
+  N ≠ V (1 ≠ 0) → Yes
+
+Result: Branch Taken
+```
+
+### `BGE` — Signed Greater Than or Equal (`>=`)
+
+* **Condition:** `N = V`
+* **Meaning:** `R0 >= R1`
+
+```text
+R0 = +7
+R1 = +3
+
+7 - 3 = +4
+
+Flags: N = 0, V = 0
+
+Evaluation:
+  N = V (0 = 0) → Yes
+
+Result: Branch Taken
+```
+
+### `BLE` — Signed Less Than or Equal (`<=`)
+
+* **Condition:** `Z = 1` OR `N ≠ V`
+* **Meaning:** `R0 <= R1`
+
+```text
+R0 = 3
+R1 = 7
+
+3 - 7 = -4
+
+Flags: Z = 0, N = 1, V = 0
+
+Evaluation:
+  N ≠ V (1 ≠ 0) → Yes
+
+Result: Branch Taken
+```
+
+---
+
+## Complete Condition Code Map
+
+| Instruction | Condition | Type | Comparison |
+| --- | --- | --- | --- |
+| **`BEQ`** | `Z = 1` | Signed / Unsigned | `==` |
+| **`BNE`** | `Z = 0` | Signed / Unsigned | `!=` |
+| **`BCS`** / **`BHS`** | `C = 1` | Unsigned | `>=` |
+| **`BCC`** / **`BLO`** | `C = 0` | Unsigned | `<` |
+| **`BHI`** | `C = 1` AND `Z = 0` | Unsigned | `>` |
+| **`BLS`** | `C = 0` OR `Z = 1` | Unsigned | `<=` |
+| **`BGE`** | `N = V` | Signed | `>=` |
+| **`BLT`** | `N ≠ V` | Signed | `<` |
+| **`BGT`** | `Z = 0` AND `N = V` | Signed | `>` |
+| **`BLE`** | `Z = 1` OR `N ≠ V` | Signed | `<=` |
+
+---
+
+## The Key Split
+
+```text
+                     CMP R0, R1
+                         │
+          ┌──────────────┴──────────────┐
+          ↓                             ↓
+      Unsigned                        Signed
+     (C and Z)                     (N, V, and Z)
+          │                             │
+    BHI / BLS                     BGT / BLT
+    BCS / BCC                     BGE / BLE
+
+```
