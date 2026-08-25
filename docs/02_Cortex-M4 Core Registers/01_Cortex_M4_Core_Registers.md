@@ -2503,8 +2503,8 @@ No interrupt and no exception is currently being handled. Then IPSR[8:0] = 0, Pr
 
 And when an exception/interrupt is active, IPSR[8:0] = exception number → Handler mode
 ```text 
-                 xPSR
-                  │
+                                    xPSR
+                                     │
        ┌─────────────────────────────┼──────────────────────┐
        ↓                             ↓                      ↓
      APSR                          EPSR                   IPSR
