@@ -2,16 +2,16 @@
 Cortex-M4 Core Registers
 │
 ├── R0–R12  (General purpose registers)        
-├── R13 (SP)        
+├── R13 (SP)        MSP, PSP
 ├── R14 (LR)        
 ├── R15 (PC)        
 │
-├── xPSR
+├── xPSR             status/state
 │   ├── APSR         Arithemetic operations (flags) ← N, Z, C, V, Q
 │   ├── EPSR         Execution State ← T + ICI/IT
 │   └── IPSR         exception number
 │
-├── CONTROL         
+├── CONTROL          privilege + stack selection
 │
 ├── PRIMASK
 ├── FAULTMASK
