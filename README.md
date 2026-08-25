@@ -21,8 +21,11 @@ This repository documents my hands-on learning journey in:
 My STM32 learning journey will follow:
 
 ### Phase 1: Basics
-- What is STM32
+- What is STM32 and overview
 - What is embedded system
+- Bitwise operations
+- stm32 memory
+- M4 Cortex Core registers
 - LED blinking (HAL library)
 
 ### Phase 2: GPIO Deep Understanding
