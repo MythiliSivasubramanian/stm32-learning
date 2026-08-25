@@ -1,4 +1,21 @@
 # Cortex-M4 Core Registers
+Cortex-M4 Core Registers
+│
+├── R0–R12  (General purpose registers)        
+├── R13 (SP)        
+├── R14 (LR)        
+├── R15 (PC)        
+│
+├── xPSR
+│   ├── APSR         Arithemetic operations (flags) ← N, Z, C, V, Q
+│   ├── EPSR         Execution State ← T + ICI/IT
+│   └── IPSR         exception number
+│
+├── CONTROL         
+│
+├── PRIMASK
+├── FAULTMASK
+└── BASEPRI
 
 ## Why do we need registers?
 
@@ -2519,3 +2536,74 @@ And when an exception/interrupt is active, IPSR[8:0] = exception number → Hand
 ```
 
 **xPSR is one 32-bit register, but ARM presents different portions of those 32 bits as APSR, EPSR, and IPSR. So we're not dealing with three physically separate 32-bit registers here. They are different views/fields of the processor's combined Program Status Register(PSR).**
+
+#### CONTROL register
+
+The Cortex-M4 has two important execution modes: Thread mode (normal application ) and handler mode(exception / interrupt). Now CONTROL is primarily relevant to Thread Mode. It controls two important things:
+```text
+CONTROL
+   │
+   ├── nPRIV  → privilege level -------> Privileged / Unprivileged
+   │
+   └── SPSEL  → which stack pointer is used ------> MSP (Main Stack pointer) / PSP (Process Stack Pointer)
+```
+CONTROL does NOT decide Thread Mode vs Handler Mode. That distinction comes from the processor's exception mechanism.
+
+Incase if Cortex-M4 is running ordinary application code in Thread Mode, and an interrupt occurs, what happens to the processor's mode? It changes from Thread Mode to Handler Mode. When an exception/interrupt is taken:
+```text
+Before interrupt
+────────────────
+Thread Mode
+    │
+    │ exception occurs
+    ▼
+Handler Mode
+    │
+    │ ISR executes
+    ▼
+exception return
+    │
+    ▼
+Thread Mode
+```
+So the interrupt changes the processor's mode. CONTROL did not cause this mode change. The Cortex-M4's exception mechanism caused it.
+So what does this CONTROL register do? CONTROL answers a different question, While the processor in Thread Mode, how privileged is it, and which stack is the processor using?
+
+It has two bits we care about:
+| Bit | Name    | Controls                |
+| --: | ------- | ----------------------- |
+|   1 | `SPSEL` | Stack Pointer selection |
+|   0 | `nPRIV` | Privilege level         |
+
+```text
+CONTROL
+31                    2    1      0
+┌──────────────────────┬──────┬──────┐
+│      Reserved        │SPSEL │nPRIV │
+└──────────────────────┴──────┴──────┘
+```
+```text
+nPRIV
+nPRIV = 0 → Privileged
+nPRIV = 1 → Unprivileged
+
+SPSEL
+SPSEL = 0 → MSP
+SPSEL = 1 → PSP
+```
+```text
+                 CONTROL
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+       nPRIV                 SPSEL
+          │                   │
+   Privileged?            Which SP?
+          │                   │
+     ┌────┴────┐          ┌───┴───┐
+     │         │          │       │
+     0         1          0       1
+     │         │          │       │
+   Priv.   Unpriv.       MSP     PSP
+```
+**SPSEL is relevant to Thread Mode. In Handler Mode, the processor uses MSP.**
