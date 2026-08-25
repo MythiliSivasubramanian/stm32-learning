@@ -1022,7 +1022,7 @@ This drawing is conceptually useful, not the actual bit layout. The three parts 
 So which bits belong to which part among APSR, IPSR; EPSR?
 
 ```text
- Bit:   31  30  29  28  27  26  25  24  23                16  15          10   9   8                  0
+ Bit:   31  30  29  28  27  26   25    24                16  15          10   9   8                  0
       ┌───┬───┬───┬───┬───┬───┬───┬───┬──────────────────┬──────────────┬───┬──────────────────┐
       │ N │ Z │ C │ V │ Q │ ICI / IT  │ T │     Reserved     │   ICI / IT   │ 0 │   ISR_NUMBER     │
       └───┴───┴───┴───┴───┴───┴───┴───┴──────────────────┴──────────────┴───┴──────────────────┘
@@ -2458,4 +2458,64 @@ Handler mode
 
 T = 1 in both cases (Thread mode and in Handler mode)   
 ```
-            
+**What are IT bits?**
+IT means If-Then. It allows certain Thumb instructions to execute conditionally without using a branch every time.
+For example, conceptually:
+```asm
+CMP   R0, #0
+IT    EQ
+MOVEQ R1, #1
+```
+Meaning roughly, if the comparison was equal, execute the following instruction.
+The processor needs to remember the conditional-execution state, and that's where the IT bits in EPSR come in.
+**What are ICI ?**
+ICI stands for Interruptible-Continuable Instruction. This is more specialized. It allows the processor to interrupt certain multi-part instructions and later continue them correctly.
+
+Lets learn more in detail about IT bits and ICI later.
+
+#### IPSR - Interrupt Program Status register
+The IPSR is a 32-bit register. But on Cortex-M4, only the lowest 9 bits are used for the Exception Number.
+```text
+Bit:  31                              9  8                    0
+      ┌────────────────────────────────┬───────────────────────┐
+      │            Reserved            │   Exception Number    │
+      │                                │       [8:0]            │
+      └────────────────────────────────┴───────────────────────┘
+                                      ↑
+                                  9 bits
+```
+- IPSR[8:0] = Exception Number
+- IPSR[31:9] = Reserved
+
+Because the processor needs to store an exception number. 9 bits can represent: `2⁹ = 512`, different values from 0 to 511. That's more than enough for the exception numbers that Cortex-M4 needs. The important thing is not that every value from 0–511 corresponds to an exception. Many values are unused/reserved.
+
+Imagine the Cortex-M4 is executing:
+```c
+int main(void)
+{
+    while (1)
+    {
+        // normal application
+    }
+}
+```
+No interrupt and no exception is currently being handled. Then IPSR[8:0] = 0, Processor mode = Thread mode. IPSR[8:0] contains the number of the currently active exception. If it is 0, no exception is active, and the processor is in Thread mode. 
+
+And when an exception/interrupt is active, IPSR[8:0] = exception number → Handler mode
+```text 
+                 xPSR
+                  │
+       ┌─────────────────────────────┼──────────────────────┐
+       ↓                             ↓                      ↓
+     APSR                          EPSR                   IPSR
+                                     │                      │
+    Arithmetic flags           Execution state      Current exception 
+          │                     information               number                
+  ________│__________         _____│______________           │
+ │ N │ Z │ C │ V │ Q │        │ T  │ ICI/IT       │     _____│______________
+ │ 31│ 30│29 │28 │ 27│        │ 24 │ 10:15, 24:26 │     │ Exception Number │
+ +-------------------+        +-------------------+     │      0:8         │
+                                                        +------------------+
+```
+
+**xPSR is one 32-bit register, but ARM presents different portions of those 32 bits as APSR, EPSR, and IPSR. So we're not dealing with three physically separate 32-bit registers here. They are different views/fields of the processor's combined Program Status Register(PSR).**
