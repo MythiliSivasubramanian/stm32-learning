@@ -2216,3 +2216,246 @@ The four flags we are able to distinguish instantly:
 - V → Did signed overflow occur?
 - Q → Did a saturation operation have to clamp the result?
 
+Q is not automatically set just because the mathematical result overflows. Q is set by saturating instructions when saturation actually occurs. Normal ADD/SUB sets N, Z, C, V, but does not set Q.
+
+### EPSR — Execution Program Status Register :
+
+```text
+                    xPSR
+                      │
+          ┌───────────┼───────────┐
+          ↓           ↓           ↓
+        APSR         EPSR        IPSR
+          │           │           │
+      Arithmetic    Execution    Exception
+        status        state        status
+ ```
+ So EPSR is not about arithmetic. APSR answered questions like if the result was zero or if the signed overflow happened etc. EPSR answers questions more like what execution state is the CPU currently in? EPSR is entirely about processor control state rather than arithmetic output.
+ 
+ ```text
+ EPSR
+ │
+ ├── T bit
+ │
+ └── ICI / IT bits
+ ```
+ 
+ **The important EPSR bits on Cortex-M4 :**
+ ```text
+EPSR Bit Layout:
+
+ 31                     26 25 24                    15         10  9                 0
+┌──────────────────────┬─────┬──┬──────────────────┬─────────────┬──┬──────────────────┐
+│       Reserved       │ICI/ │T │     Reserved     │   ICI / IT  │  │     Reserved     │
+│       (APSR)         │ IT  │  │                  │             │  │      (IPSR)      │
+└──────────────────────┴─────┴──┴──────────────────┴─────────────┴──┴──────────────────┘
+                        └─┬─┘ │                     └──────┬────┘
+                          │   └── Bit 24 (Thumb)           │
+                          └─────────── ICI / IT ───────────┘
+                      
+EPSR bit 24 is called as T bit (T = Thumb state) which holds the execution state. It tells us how the processor is executing instructions.
+On a Cortex-M4, the processor executes Thumb instructions. Therefore, during normal operation `T = 1`.
+
+```
+Lets understand what does Thumb state means? Thumb state means the Cortex-M4 is interpreting the instructions using the **Thumb instruction set.** It is about how the CPU interprets the instruction bits, not about whether our C program is in a particular mode. Lets think of the CPU receiving a stream of bits from memory:
+
+```text
+Flash
+  ↓
+instruction bits
+  ↓
+Cortex-M4
+  ↓
+"How should I interpret these bits?"
+  ↓
+Thumb instruction set
+```
+The T bit (24th bit of EPSR) tells the processor about this execution state. This name (Thumb) comes from ARM's history. Originally, ARM processors had a full 32-bit ARM instruction set. ARM then introduced a more compact instruction set called Thumb.
+ 
+**ARM state vs Thumb state :**
+Historically, classic ARM processors could operate in two instruction states:
+```text
+              ARM processor
+                   │
+          ┌────────┴────────┐
+          ↓                 ↓
+      ARM state         Thumb state
+          │                 │
+     ARM instructions   Thumb instructions
+       generally          generally
+       32-bit encoded     more compact 16-bit or 32-bit encoding
+```
+Modern Thumb, specifically Thumb-2, contains both 16-bit instructions and 32-bit instructions.  And the Cortex-M4 uses Thumb-2. The Cortex-M4 does not support the classic ARM instruction state. It executes Thumb instructions. Thats why we usually have EPSR.T = 1 during normal operations.
+
+**Then why do we even have a T bit?**
+The T bit exists because the ARM architecture has an execution-state concept, and the processor architecture needs to maintain that state. But on Cortex-M, the architecture is much more constrained. We arent allowed to change the 24th bit EPSR.T because Cortex-M4 doesn't support ARM state. Attempting to create an invalid execution state can result in an exception such as a UsageFault.
+
+***T records the instruction-set execution state, and Cortex-M4 operates in Thumb state.***
+
+###### state Vs mode :
+These are two different concepts.
+
+**Execution state :**
+- ARM state
+- Thumb state
+
+This answers, which instruction set is the processor using?
+
+**Processor mode :**
+- Thread mode
+- Handler mode
+
+This answers, is the processor executing normal application code or handling an exception?
+
+```text
+             Cortex-M4
+                 │
+        ┌────────┴────────┐
+        │                 │
+   Execution state    Processor mode
+        │                 │
+     Thumb            Thread / Handler    
+                         │       │
+                      normal    interrupt
+                  application
+```
+**Example :**
+Imagine our STM32F407 is executing:
+```c
+int main(void)
+{
+    while (1)
+    {
+        GPIOA->ODR ^= (1 << 5);
+    }
+}
+```
+The compiler generates Thumb-2 machine instructions.
+The processor is therefore:
+```text
+Execution state: Thumb
+
+T bit: 1
+
+Processor mode: Thread mode
+```
+Now suppose a timer interrupt occurs. The processor enters the timer ISR:
+```c
+void TIM2_IRQHandler(void)
+{
+    // handle interrupt
+}
+```
+```text
+Execution state: Thumb
+
+T bit: 1
+
+Processor mode: Handler mode
+```
+**T doesn't tell us whether we're in Thread or Handler mode. It states that it is in Thumb execution state (T = 1) and Thumb-2 instructions can be 16-bit or 32-bit encoded.**
+
+Example:
+
+Imagine the CPU is executing:
+```c
+int main(void)
+{
+    while (1)
+    {
+        // normal code
+    }
+}
+```
+No interrupt is active.
+For normal application execution in Thread mode:
+```text
+T = 1
+Processor mode = Thread mode
+IPSR[8:0] = 0
+```
+The IPSR (Interrupt Program Status Register) contains the exception number.
+- 0 → Thread mode / no active exception
+- Non-zero → an exception is currently active
+
+So when our main() is running:
+```text
+main()
+  ↓
+Thread mode
+  ↓
+No active exception
+  ↓
+IPSR = 0
+```
+
+| What are we asking?        | Where do we get the answer?                    |
+| -------------------------- | ---------------------------------------------- |
+| Which instruction state?   | EPSR.T = 1                                     |
+| Thread or Handler mode?    | IPSR exception number   helps determine this   |
+| Which exception is active? | IPSR[8:0]                                      |
+
+```text
+                    xPSR
+                     │
+        ┌────────────┼────────────┐
+        ↓            ↓            ↓
+      APSR          EPSR         IPSR
+     flags       execution     exception
+                   state        number
+                                  │
+                                  ↓
+                              0 = Thread
+                           non-zero = Handler
+```
+The processor's mode isn't stored as a separate "Thread/Handler" bit in xPSR. We infer the mode from the active exception state: IPSR = 0 means Thread mode; a nonzero exception number means Handler mode.
+
+Suppose a Timer interrupt occurs and the processor enters its interrupt handler. Then,
+T = 1. Entering an interrupt does not change the instruction set state. The Cortex-M4 continues executing Thumb/Thumb-2 instructions.
+```text
+Interrupt occurs
+      ↓
+Enter Handler mode
+      ↓
+Still Thumb state
+      ↓
+T = 1
+```
+
+Processor mode = Handler mode . The processor is now executing an exception handler, so it is in Handler mode.
+IPSR[8:0] contains the exception number. The number 1 specifically means Reset. Exception number 1 = Reset. For example, the Cortex-M exception numbers begin roughly like this:
+```text
+Exception Number    Meaning
+──────────────────────────────
+0                   Thread mode / no active exception
+1                   Reset
+2                   NMI
+3                   HardFault
+4                   MemManage
+5                   BusFault
+6                   UsageFault
+etc
+```
+Then the external interrupts start at 16. 16 + IRQ number = exception number. So if our timer peripheral generates, for example, IRQ number 30,
+```text
+Exception number = 16 + 30  = 46 
+Then: IPSR[8:0] = 46
+```
+**IPSR tells me WHICH exception is currently active.**
+```text
+IPSR = 0
+    ↓
+No active exception
+    ↓
+Thread mode
+
+Whereas:
+IPSR = 46
+    ↓
+Exception number 46 is active
+    ↓
+Handler mode
+
+T = 1 in both cases (Thread mode and in Handler mode)   
+```
+            
