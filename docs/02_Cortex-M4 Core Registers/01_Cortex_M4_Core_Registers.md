@@ -2,24 +2,36 @@
 ```text
 Cortex-M4 Core Registers
 │
-├── R0–R12  (General purpose registers)        
-├── R13 (SP)        MSP, PSP
-├── R14 (LR)        
-├── R15 (PC)        
+├── R0–R12  (General purpose registers)  
+│    
+├── R13 (SP)        
+│     │__ MSP (Main Stack Pointer)
+│.    │__ PSP (Process Stack Pointer)
 │
-├── xPSR             status/state
+├── R14 (LR)  (Link Register)
+│       
+├── R15 (PC)  (Program Counter)    
+│
+├── xPSR             Program Status Register
+│   │
 │   ├── APSR         Arithemetic operations (flags) ← N, Z, C, V, Q
 │   ├── EPSR         Execution State ← T + ICI/IT
 │   └── IPSR         exception number
 │
-├── CONTROL 
-│      │___  nPRIV
-│      │___  SPSEL
-│      │___  FPCA
 │
-├── PRIMASK         block most configurable interrupts
-├── FAULTMASK       
-└── BASEPRI         block configurable interrupts below a certain priority
+├── CONTROL 
+│      │___  nPRIV   Privileged / Unprivileged in Thread mode
+│      │___  SPSEL   MSP / PSP selection in Thread mode
+│      │___  FPCA    Floating-point context active
+│
+│
+├── Special masking registers
+│        │______   PRIMASK         Mask most configurable exceptions/interrupts
+│        │______   FAULTMASK       Mask all exceptions except NMI
+│        │______   BASEPRI         Mask configurable exceptions/interrupts
+│                                   at and below a priority threshold
+│
+│__ FPSCR   Floating Point Status and Control Register
 ```
 ## Why do we need registers?
 
@@ -2970,6 +2982,8 @@ PRIMASK = 1
        ↓
 Most (NOT ALL) interrupts are blocked (NMI and HardFault are not masked by PRIMASK)
 ```
+**NMI = Non-Maskable Interrupt — cannot be blocked by PRIMASK, BASEPRI, or FAULTMASK. HardFault = a serious processor fault/exception.**
+
 NMI and HardFault are not masked by PRIMASK. We'll understand exactly why when we study exceptions. PRIMASK doesnt disable NVIC (Nested Vectored Interrupt Controller*). The NVIC still exists and can still have interrupts pending. **PRIMASK is a CPU-level mask that affects whether certain exceptions are allowed to be taken.**
 
 *NVIC : It is a hardware block inside the Cortex-M4 processor/core system that manages interrupts from peripherals and other external sources. The NVIC's job is basically to help the processor manage interrupt requests. NVIC is the hardware interrupt controller that manages interrupts. For example,
@@ -3086,3 +3100,160 @@ Blocks the lower-priority interrupts, but allow important high-priority interrup
 
 **NMI and HardFault are not masked neither by BASEPRI nor by PRIMASK.**
 
+#### FAULTMASK
+- PRIMASK → masks most configurable interrupts
+- BASEPRI → masks configurable interrupts below a certain priority threshold
+- FAULTMASK → masks almost everything, including HardFault
+
+FAULTMASK is a 1-bit special-purpose register. Only bit 0 matters:
+```text
+FAULTMASK
+
+31                         1   0
+┌──────────────────────────┬───┐
+│        Reserved          │ F │
+└──────────────────────────┴───┘
+                              ↑
+                           bit 0
+```
+When the bit 0 of FAULTMASK is 0, then normal exception behavior. When the bit 0 of FAULTMASK is 1, then the processor masks all exceptions except NMI. So,
+```text
+FAULTMASK = 1
+        │
+        ├── NMI       →  allowed
+        ├── HardFault →  masked
+        ├── MemManage →  masked
+        ├── BusFault  →  masked
+        ├── UsageFault → masked
+        └── IRQs      →  masked
+```
+**Comparisons :**
+| Register      | What does `1` do?                                | HardFault | NMI       |
+| ------------- | ------------------------------------------------ | --------- | --------- |
+| **PRIMASK**   | Masks configurable interrupts                    | Allowed | Allowed |
+| **BASEPRI**   | Masks configurable interrupts at/below threshold | Allowed | Allowed |
+| **FAULTMASK** | Masks almost all exceptions                      | **Masked** | Allowed |
+
+Just like PRIMASK, we can normally manipulate it using Cortex-M special instructions like ```asm CPSID f``` meaning `Set FAULTMASK = 1` and ```asm CPSIE f```, meaning `Clear FAULTMASK = 0`. These are ARM Thumb assembly instructions, not C statements. There are also CMSIS C functions that wrap these instructions, but we'll come to that later.
+
+Imagine the processor is doing something extremely sensitive, and we temporarily don't want any fault handler to interrupt the operation. We could temporarily do,
+```text
+FAULTMASK = 1
+        ↓
+perform critical operation
+        ↓
+FAULTMASK = 0
+```
+But this is very powerful and dangerous. We generally don't casually use FAULTMASK in normal application code.
+
+Even with FAULTMASK = 1, NMI still executes. That's because NMI is the highest-priority exception that can be masked neither by PRIMASK, BASEPRI, nor FAULTMASK.
+
+#### FPSCR : Floating-Point Status and Control Register
+It belongs to the FPU (Floating-Point Unit) of the Cortex-M4. FPU is Floating-Point Unit. It is hardware inside the Cortex-M4 that can perform floating-point operations efficiently, for example:
+```c
+float a = 3.5f;
+float b = 2.0f;
+
+float c = a * b;
+```
+Without an FPU, floating-point operations can be implemented in software, which is generally slower. With the Cortex-M4 FPU enabled, floating-point instructions can use the FPU's floating-point registers (S0 - S31).
+
+FPCA = Floating-point context active. It is a bit in the CONTROL register:
+```text
+CONTROL
+ ├── nPRIV
+ ├── SPSEL
+ └── FPCA       ← Floating-point context active
+```
+FPCA tells the processor whether the current Thread-mode context is considered to have an active floating-point context. It is mainly important when we talk about exception entry/return and FPU context preservation. And FPCA in CONTROL connects the normal core context with the FPU context.
+
+**FPU registers vs FPSCR vs FPCA :**
+Think of the FPU as a small floating-point subsystem inside the Cortex-M4:
+| Thing                      | What is it?      | Purpose                                                         |
+| -------------------------- | ---------------- | --------------------------------------------------------------- |
+| **FPU registers (S0–S31)** | Registers        | Hold floating-point data/results                                |
+| **FPSCR**                  | Register         | Holds **status flags + control information** for the FPU        |
+| **FPCA**                   | Bit in `CONTROL` | Tells the core whether the **floating-point context is active** |
+
+##### 1. FPU registers — S0–S31:
+
+These are the actual registers used to store floating-point values. For example, `S0 = 3.5`, `S1 = 2.0`.
+An instruction could perform `S2 = S0 × S1`.
+So:
+```text
+S0 ── 3.5 ──┐
+            ├── FPU ──→ S2 = 7.0
+S1 ── 2.0 ──┘
+```
+These are data registers.
+
+##### 2. FPSCR Floating-Point Status and Control Register:
+
+This is a special register associated with the FPU. It does not hold our normal float values. Instead, it contains things such as floating-point status flags and control information.
+Conceptually,
+```text
+FPU
+│
+├── S0–S31       → floating-point data
+│
+└── FPSCR        → FPU status/control
+```
+
+##### 3. FPCA Floating Point Context Active :
+
+FPCA is not a separate register. It is bit 2 of the CONTROL register.
+```text
+CONTROL
+ ┌────────┬────────┬────────┐
+ │ nPRIV  │ SPSEL  │ FPCA   │
+ │ bit 0  │ bit 1  │ bit 2  │
+ └────────┴────────┴────────┘
+```
+So, 
+```text
+CONTROL.FPCA
+       ↑
+       └── tells the processor about the active
+           floating-point context
+```
+S0–S31 → Where is the floating-point data?
+FPSCR → What is the FPU's status/control state?
+FPCA → Does this Thread-mode context have an active FP context?
+
+Now, more on FPSCR — Floating-Point Status and Control Register. FPSCR contains several groups of bits:
+```text
+FPSCR
+┌──────────────────────────────────────────────┐
+│ NZCV │ ... │ QC │ ... │ RMode │ ...         │
+└──────────────────────────────────────────────┘
+```
+The important ones for us are: NZCV, QC, RMode.
+
+**NZCV :** These are floating-point condition flags.
+- N → Negative
+- Z → Zero
+- C → Carry
+- V → Overflow
+
+**QC :** QC = Cumulative Saturation. This is related to saturation operations. And remember our earlier APSR discussion where we leant about Q flag there. For the FPU, there is a corresponding saturation-related status indication in FPSCR.
+
+**RMode :** This controls the rounding mode used by floating-point operations. For example, floating-point calculations sometimes produce a result that cannot be represented exactly. The FPU needs to decide how to round that result.
+
+Example:
+Suppose the FPU performs: `S0 = 1.5`, `S1 = 2.0` and the operation `S2 = S0 + S1`. The result is S2 = 3.5
+The actual number 3.5 goes into S2
+
+The FPU's status information is reflected in FPSCR.
+```text
+             FPU
+        ┌─────────────┐
+S0 ────→│             │
+S1 ────→│ calculation │────→ S2 = 3.5
+        │             │
+        └──────┬──────┘
+               │
+               ↓
+             FPSCR
+       status/control info
+```
+S registers hold the answer. FPSCR describes the condition/status of the floating-point operation and controls how the FPU behaves.It contains floating-point status flags and control fields.
