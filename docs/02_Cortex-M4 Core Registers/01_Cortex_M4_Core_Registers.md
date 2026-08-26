@@ -11,7 +11,10 @@ Cortex-M4 Core Registers
 │   ├── EPSR         Execution State ← T + ICI/IT
 │   └── IPSR         exception number
 │
-├── CONTROL          privilege + stack selection
+├── CONTROL 
+│      │___  nPRIV
+│      │___  SPSEL
+│      │___  FPCA
 │
 ├── PRIMASK
 ├── FAULTMASK
@@ -2869,3 +2872,60 @@ function();
 But certain operations are restricted. For example, an unprivileged thread cannot simply execute privileged operations and change itself to privileged or do things that an privilaged code does. The processor prevents that. That's the whole point of having the privilege mechanism.
 
 **Thread Mode can run either privileged or unprivileged, while Handler Mode is always privileged. The CONTROL register determines Thread Mode's privilege (nPRIV) and, when in Thread Mode, whether MSP or PSP is used (SPSEL). Privileged software can transition Thread Mode to unprivileged; an unprivileged thread cannot promote itself back to privileged directly.**
+
+#### FPCA - Floating-Point Context Active :
+
+The Cortex-M4 can have a Floating Point Unit (FPU), which allows it to execute floating-point instructions such as calculations involving float. The processor has additional floating-point registers, 
+```text
+S0 – S31
+FPSCR
+```
+These are part of the floating-point context. So now imagine the CPU is running an application:
+```text
+Normal CPU context
+    ↓
+R0–R12
+SP
+LR
+PC
+xPSR
+```
+If floating-point state is involved, there is additional context:
+```text
+Floating-point context
+    ↓
+S0–S31
+FPSCR
+```
+**CONTROL[2] is the FPCA bit.**
+```text
+CONTROL
+
+Bit 2       Bit 1       Bit 0
+ FPCA       SPSEL       nPRIV
+   │           │           │
+   │           │           └── Privileged / Unprivileged
+   │           └────────────── MSP / PSP
+   └───────────────────────── Floating-point context active
+```
+When FPCA or 2nd bit of CONTROL is 0, then the current context does not have an active floating-point context. When it is 1, then the current context has an active floating-point context.
+
+During an exception/interrupt, the processor may need to save the current context. Normally, it saves the core registers. If floating-point state is active, the processor may also need to preserve the floating-point registers. That is important because an interrupt must eventually return to the interrupted code without destroying its state. So conceptually,
+```text
+Application
+   │
+   │ using CPU registers
+   ↓
+Exception occurs
+   │
+   ↓
+Processor saves context
+   │
+   ├── Core context
+   │
+   └── Floating-point context
+         ↑
+       FPCA helps
+       identify this
+```
+It doesnt simply FPCA = 1 means the CPU is currently doing a floating-point calculation. FPCA indicates that the floating-point context is active for the current context.
