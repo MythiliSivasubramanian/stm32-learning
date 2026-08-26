@@ -2567,13 +2567,29 @@ exception return
 Thread Mode
 ```
 So the interrupt changes the processor's mode. CONTROL did not cause this mode change. The Cortex-M4's exception mechanism caused it.
-So what does this CONTROL register do? CONTROL answers a different question, While the processor in Thread Mode, how privileged is it, and which stack is the processor using?
+So what does this CONTROL register do? CONTROL answers a different question. The CONTROL register controls which stack pointer is used in Thread Mode, and it controls the privilege level of Thread Mode.
 
-It has two bits we care about:
-| Bit | Name    | Controls                |
-| --: | ------- | ----------------------- |
-|   1 | `SPSEL` | Stack Pointer selection |
-|   0 | `nPRIV` | Privilege level         |
+CONTROL has two important bits. 
+```text
+CONTROL
+   │
+   │
+   │── Bit 0: nPRIV
+   │        │
+   │        ├── 0 → Privileged
+   │        └── 1 → Unprivileged
+   │        
+   │── Bit 1: SPSEL
+          │
+          ├── 0 → MSP
+          └── 1 → PSP
+           
+```
+CONTROL controls two things in Thread Mode:
+1.  Which stack pointer is used: MSP or PSP.
+2.  Whether Thread Mode is privileged or unprivileged.
+
+**In Handler Mode, the processor always uses MSP, regardless of CONTROL.SPSEL.**
 
 ```text
 CONTROL
@@ -2588,8 +2604,8 @@ nPRIV = 0 → Privileged
 nPRIV = 1 → Unprivileged
 
 SPSEL
-SPSEL = 0 → MSP
-SPSEL = 1 → PSP
+SPSEL = 0 → MSP Thread mode / handler mode (MSP always in Handler mode)
+SPSEL = 1 → PSP Thread mode
 ```
 ```text
                  CONTROL
@@ -2598,7 +2614,7 @@ SPSEL = 1 → PSP
           │                   │
        nPRIV                 SPSEL
           │                   │
-   Privileged?            Which SP?
+   Privileged?            Which SP in Thread mode?
           │                   │
      ┌────┴────┐          ┌───┴───┐
      │         │          │       │
@@ -2606,4 +2622,250 @@ SPSEL = 1 → PSP
      │         │          │       │
    Priv.   Unpriv.       MSP     PSP
 ```
-**SPSEL is relevant to Thread Mode. In Handler Mode, the processor uses MSP.**
+**SPSEL is relevant to Thread Mode. In Handler Mode, the processor uses MSP always. nPRIV matters for Thread Mode. Handler Mode is always privileged.**
+
+So:
+```text
+                 Cortex-M4
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+     Thread Mode          Handler Mode
+          │                   │
+     CONTROL matters       Privileged , MSP
+          │
+     ┌────┴────┐
+     │         │
+ nPRIV       SPSEL
+     │         │
+Privilege     Stack
+
+```
+So,
+```text
+THREAD MODE
+    │
+    ├── nPRIV → Privileged / Unprivileged
+    │
+    └── SPSEL → MSP / PSP
+
+
+HANDLER MODE
+    │
+    ├── Privileged
+    └── MSP
+```
+
+We learning about Stack Pointer R13, we came accross that on Cortex M4, R13 Stack Pointer (SP) can refer to 2 different physical Stack pointers. Main Stack Pointer (MSP) and Process Stack pointer (MSP). 
+```text
+              R13 / SP
+                 │
+        ┌────────┴────────┐
+        │                 │
+       MSP               PSP
+```
+1. MSP — Main Stack Pointer
+
+MSP is primarily used for the main/system stack. A very important use is:
+```text
+Reset
+  ↓
+MSP
+  ↓
+Exception / Interrupt
+  ↓
+Handler Mode
+  ↓
+MSP
+```
+When an interrupt occurs, the processor uses MSP for Handler Mode.
+
+2. PSP — Process Stack Pointer
+
+PSP is mainly useful for application/thread execution. For example, an RTOS such as FreeRTOS can give each task its own stack:
+```text
+Task A → PSP → Task A stack
+Task B → PSP → Task B stack
+Task C → PSP → Task C stack
+```
+This helps separate the application's/task stacks from the system/exception stack.
+
+```text
+                 Cortex-M4
+                    │
+             ┌──────┴──────┐
+             │             │
+            MSP           PSP
+             │             │
+       System/ISR       Task/Application
+          stack             stack
+```        
+This gives the operating system or application a way to keep task/application stack usage separate from the main exception-handling stack.
+
+CONTROL.SPSEL selects which stack pointer Thread Mode uses. SPSEL = 0  →  MSP, SPSEL = 1  →  PSP
+While Handler Mode always uses MSP regardless of SPSEL.
+
+It doesnt simply means that MSP = interrupt stack and PSP = normal stack.  MSP is the main stack pointer, and PSP provides an alternative stack pointer that can be used in Thread Mode. The exact choice depends on the software design—bare-metal code often uses MSP, while an RTOS commonly uses PSP for tasks.
+
+Lets understand how it changes from privileged to unprivilaged and vice viceversa. The key point is that, Software changes the CONTROL register, but the processor enforces the privilege rules.
+
+1. At reset, Thread Mode starts privileged
+
+After reset, the Cortex-M4 starts executing Reset Handler in Thread Mode, and CONTROL is initially privileged `CONTROL.nPRIV = 0` and CONTROL.SPSEL = 0 (MSP). Reset is a special exception, but the processor does not execute the Reset Handler in Handler Mode. After reset, execution begins in Thread Mode, and initially it is privileged. That's the architecture-defined reset state. Conceptually,
+```text
+MCU Reset
+   │
+   ▼
+Reset_Handler
+   │
+   │ Thread Mode
+   │ Privileged
+   │ MSP
+   ▼
+startup code
+   │
+   ├── .data initialization
+   ├── .bss initialization
+   ├── clock/system initialization
+   └── call main()
+             │
+             ▼
+       Application code
+```
+CONTROL controls which stack pointer is used in Thread Mode. So why does startup use MSP instead of PSP? Because SPSEL is initially 0. After reset, the processor starts with CONTROL.SPSEL = 0. So the startup code uses MSP. 
+
+Where does the initial value of MSP come from? This connects directly to the startup code, Vector table. The very first word is MSP.
+```text
+Vector Table
+────────────────────────
+Address 0x08000000
+
++0x00 → Initial MSP value
++0x04 → Reset_Handler address
++0x08 → NMI_Handler
++0x0C → HardFault_Handler
+...
+```
+For example:
+```text
+0x08000000 → 0x20020000
+0x08000004 → Reset_Handler
+```
+Then execution begins at Reset_Handler. So before our startup code even executes, the hardware has already loaded the initial MSP.
+
+
+2. Who changes Privileged → Unprivileged?
+
+Our software executes an instruction that writes to the CONTROL register. For example, suppose we are writing bare metal Cortex-M4 code. We could write something like 
+```asm 
+MOV  R0, #1
+MSR  CONTROL, R0
+``` 
+Here the important instruction is the MSR instruction ```asm MSR CONTROL, R0``` which means write the value in R0 into the CONTROL register.  If R0 contains 1 then CONTROL.nPRIV = 1 and the processor becomes Thread Mode -> unprivileged. So,
+```text
+Software
+   ↓
+MSR instruction
+   ↓
+CONTROL.nPRIV = 1
+   ↓
+Thread Mode becomes Unprivileged
+```
+C cannot normally just do this, because CONTROL isn't a normal memory-mapped peripheral register. It's a Cortex-M4 core special register. So we need a special instruction like ```asm MSR CONTROL, R0```or  some options provided by the compiler. For example, with GCC,
+```c
+__asm volatile (
+    "mov r0, #1\n"
+    "msr control, r0\n"
+);
+```
+There are also CMSIS functions/intrinsics that wrap these special-register operations.
+
+3. Unprivileged → privileged?
+
+Once we are in unprivileged, we cannot simply change nPRIV back to 0 (privilaged). An unprivileged program cannot directly promote itself back to privileged. That's intentional. Otherwise privilege protection would be useless. So how does Unprivileged to Privileged happen? Its through an exception mechanism, typically a system service such as SVC (Supervisor Call). Conceptually,
+```text
+Unprivileged Thread Mode
+        │
+        │ SVC
+        ▼
+   Handler Mode
+        │
+        │ Privileged
+        ▼
+SVC Handler
+        │
+        │ performs privileged operation
+        ▼
+return to Thread Mode
+```
+**An unprivileged application asks privileged system software to perform an operation on its behalf.** This is one of the fundamental ideas behind operating systems and RTOSes. SVC doesnt change from CONTROL.nPRIV back to 0 automatically. Rather,
+```text
+Unprivileged Thread
+        │
+        │ SVC
+        ▼
+Privileged Handler
+        │
+        │ system decides what is allowed
+        ▼
+return
+```
+The privileged handler/OS controls what happens next. This is why Cortex-M4 has the privileged/unprivileged architecture:
+```text
+             Privileged code
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+     Can access          Can deliberately
+     privileged           enter unprivileged
+     resources                mode
+          │
+          ▼
+    Unprivileged code
+          │
+          │ needs privileged operation
+          ▼
+         SVC
+          │
+          ▼
+   Privileged Handler
+   ```
+This becomes very important when we later study FreeRTOS, because tasks can run using PSP while the kernel operates with privileged access.
+
+**Privileged → Unprivileged:**
+- A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
+
+**Unprivileged → Privileged:**
+- An unprivileged program cannot directly clear nPRIV. It needs an exception/privileged mechanism such as SVC, whose handler executes in privileged Handler Mode.
+
+Privilege is about what the CPU is allowed to do. It is not about whether the code is startup code, application code, or interrupt code.
+
+Think of the Cortex-M4 CPU as having two permission levels:
+| Mode         | Privilege                      |
+| ------------ | ------------------------------ |
+| Thread Mode  | Privileged **or** Unprivileged |
+| Handler Mode | **Always Privileged**          |
+
+When the CPU is executing our normal application in Thread mode, it can be either Privileged or Unprivileged depending on the CONTROL register. So what can the privileged do and what happens when in Unprivileged?
+
+Privileged code has full access to the processor's resources, subject to the memory system/security configuration. For our Cortex-M4 learning, think of it as Privileged as trusted code. It can perform operations that unprivileged code cannot.
+
+For example, privileged code can access system-control resources, including things associated with:
+- changing processor control configuration
+- configuring interrupts/exceptions
+- accessing protected system registers
+- changing certain special-purpose registers
+- using privileged instructions
+
+This is important because we don't want arbitrary application code to be able to change the entire CPU configuration.
+
+Unprivileged means that the CPU deliberately restricts what this code is allowed to do. The code can still do normal things like the below, assuming the memory region is accessible to it.
+```c
+int a = 10;
+a++;
+GPIOA->ODR = ...;
+function();
+```
+But certain operations are restricted. For example, an unprivileged thread cannot simply execute privileged operations and change itself to privileged or do things that an privilaged code does. The processor prevents that. That's the whole point of having the privilege mechanism.
+
+**Thread Mode can run either privileged or unprivileged, while Handler Mode is always privileged. The CONTROL register determines Thread Mode's privilege (nPRIV) and, when in Thread Mode, whether MSP or PSP is used (SPSEL). Privileged software can transition Thread Mode to unprivileged; an unprivileged thread cannot promote itself back to privileged directly.**
