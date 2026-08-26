@@ -2929,3 +2929,133 @@ Processor saves context
        identify this
 ```
 It doesnt simply FPCA = 1 means the CPU is currently doing a floating-point calculation. FPCA indicates that the floating-point context is active for the current context.
+
+#### PRIMASK
+
+Before understanding what an PRIMASK is, lets see why do we need it. Imagine our Cortex-M4 is running our application,
+```text
+main()
+  ↓
+doing some important operation
+  ↓
+Interrupt arrives
+  ↓
+CPU stops current code
+  ↓
+runs ISR
+  ↓
+returns to application
+```
+Normally, the processor can respond to interrupts/exceptions. But sometimes software needs a short section where it says, normal maskable interrupts not to disturb it right now. That's where PRIMASK comes in.
+
+**PRIMASK is a 1-bit interrupt-mask register.** Its important bit is bit 0.
+```text
+PRIMASK
+31                         1   0
+┌──────────────────────────┬───┐
+│        Reserved          │ I │
+└──────────────────────────┴───┘
+                              ↑
+                           PRIMASK[0]
+Only bit 0 matters.
+```                          
+When bit 0 of PRIMASK is 0, then interrupt masking is not enabled. The processor can respond normally to configurable exceptions/interrupts. When bit 0 of PRIMASK is 1, then the processor masks all exceptions with configurable priority. So conceptually,
+```text
+PRIMASK = 0
+       ↓
+Normal interrupt handling
+
+PRIMASK = 1
+       ↓
+Most (NOT ALL) interrupts are blocked (NMI and HardFault are not masked by PRIMASK)
+```
+NMI and HardFault are not masked by PRIMASK. We'll understand exactly why when we study exceptions. PRIMASK doesnt disable NVIC (Nested Vectored Interrupt Controller*). The NVIC still exists and can still have interrupts pending. **PRIMASK is a CPU-level mask that affects whether certain exceptions are allowed to be taken.**
+
+*NVIC : It is a hardware block inside the Cortex-M4 processor/core system that manages interrupts from peripherals and other external sources. The NVIC's job is basically to help the processor manage interrupt requests. NVIC is the hardware interrupt controller that manages interrupts. For example,
+```text
+Timer reaches its value
+        ↓
+Timer generates interrupt request
+        ↓
+NVIC receives it
+        ↓
+NVIC considers priority/masking
+        ↓
+CPU takes the interrupt
+        ↓
+Handler/ISR executes
+```
+Lets learn more about NVIC in Exceptions lessons. 
+
+Example:
+Suppose `PRIMASK bit 0 = 0`, and a normal configurable interrupt arrives. Will the CPU be able to respond to that interrupt? Yes, because PRIMASK = 0 → configurable exceptions are not masked by PRIMASK, so the processor is allowed to take them (assuming the other conditions for exception handling are satisfied).
+
+If PRIMASK bit 0 is 1, what happens to a normal configurable interrupt that arrives? PRIMASK[0] = 1 enables interrupt masking. Therefore, exceptions with configurable priority are prevented from being taken. The interrupt request isn't necessarily destroyed. It can remain pending and be handled later when the masking condition is removed. We'll understand pending vs active vs handled when we study NVIC/exceptions.
+
+So basically, suppose our program is doing something and that must not be interrupted for a very short time, then we can control it using PRIMNASK. 
+```text
+Important operation
+      ↓
+Disable configurable interrupts
+      ↓
+Do the operation
+      ↓
+Enable configurable interrupts
+
+We can conceptually do:
+
+PRIMASK = 1
+    ↓
+critical section
+    ↓
+PRIMASK = 0
+```
+This is one reason PRIMASK exists. We can change the bit 0 of PRIMASK using Software with special Cortex-M instructions/ ARM Thumb instructions for cortex M such as,
+```asm
+CPSID i    → set PRIMASK = 1
+CPSIE i    → clear PRIMASK = 0
+```
+CPS- Change Processor State. The i tells the processor that we're changing the interrupt mask represented by PRIMASK. 
+
+Or in embedded C, we can use inline assembly something like ```c __asm volatile ("CPSID i");``` or ```c __disable_irq();```
+
+##### Configurable vs non-configurable exceptions :
+
+The Cortex-M has different types of exceptions.  Some exceptions have a programmable/configurable priority.Others have fixed priority defined by the architecture.
+
+**Configurable exceptions :**
+Their priority can be configured by software.
+
+Examples include:
+- External interrupts from peripherals
+- Many system exceptions such as SysTick etc
+
+For example, an STM32 timer might generate:
+```text
+Timer interrupt
+     ↓
+NVIC
+     ↓
+Priority can be configured
+```
+So it belongs to the group affected by interrupt masking mechanisms such as PRIMASK.
+
+**Non-configurable / fixed-priority exceptions :**
+Some exceptions have priorities that cannot simply be configured like normal interrupts.
+The important ones for us right now are:
+- NMI
+- HardFault
+PRIMASK does NOT mask NMI or HardFault. Because these are considered high-priority system-level exceptions. For example, if the processor encounters a serious fault, HardFault must still be able to happen.
+
+Exception is the broad Cortex-M concept. An interrupt is one kind of exception. 
+```text
+                 EXCEPTIONS
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+       Interrupts          System exceptions
+          │                     │
+     GPIO / Timer /       SysTick / SVC /
+     UART etc.             HardFault / NMI
+  ```
+  
