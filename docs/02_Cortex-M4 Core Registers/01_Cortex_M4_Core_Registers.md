@@ -1,4 +1,5 @@
 # Cortex-M4 Core Registers
+```text
 Cortex-M4 Core Registers
 │
 ├── R0–R12  (General purpose registers)        
@@ -16,10 +17,10 @@ Cortex-M4 Core Registers
 │      │___  SPSEL
 │      │___  FPCA
 │
-├── PRIMASK
-├── FAULTMASK
-└── BASEPRI
-
+├── PRIMASK         block most configurable interrupts
+├── FAULTMASK       
+└── BASEPRI         block configurable interrupts below a certain priority
+```
 ## Why do we need registers?
 
 Let's start with the most basic reason.
@@ -3059,3 +3060,29 @@ Exception is the broad Cortex-M concept. An interrupt is one kind of exception.
      UART etc.             HardFault / NMI
   ```
   
+#### BASEPRI :
+
+The key difference is:
+- PRIMASK = 1 blocks all configurable-priority interrupts/exceptions.
+- BASEPRI = block configurable interrupts below a certain priority.
+- NMI and HardFault are not masked neither by BASEPRI nor by PRIMASK.
+
+BASEPRI is another interrupt masking register, but unlike PRIMASK, it gives us priority-based control.
+Cortex-M priority numbering:
+- Smaller number = higher priority
+- Larger number = lower priority
+
+Example,
+| Interrupt           | Priority |
+| ------------------- | -------: |
+| Emergency interrupt |        1 |
+| UART                |        5 |
+| Timer               |       10 |
+| ADC                 |       15 |
+
+Suppose BASEPRI = 10, then interrupts with priority 10 or numerically greater are prevented from being serviced, while higher-priority interrupts such as priority 1 or 5 can still run.
+
+Blocks the lower-priority interrupts, but allow important high-priority interrupts. BASEPRI blocks interrupts whose priority number is greater than or equal to BASEPRI.
+
+**NMI and HardFault are not masked neither by BASEPRI nor by PRIMASK.**
+
