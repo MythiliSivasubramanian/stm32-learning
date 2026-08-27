@@ -129,6 +129,24 @@ Often called as *Intra-procedure scratch register*
 
 Mostly temporary use by compiler.
 
+R0–R12 are 32-bit general-purpose registers of the Cortex-M4 core. They are used by the CPU for things such as:
+
+•	temporary values 
+•	arithmetic/logic operations 
+•	function arguments and return values 
+•	addresses/pointers 
+•	local variables, when the compiler chooses to keep them in registers 
+
+For example:
+```c
+int a = 5;
+int b = 3;
+int c = a + b;
+```
+R0–R3 have special roles in the ARM procedure-call convention. R0–R3 → commonly used for function arguments and return values  The compiler may place a and b in registers such as R0 and R1 and perform the addition using the ALU. However, C does not guarantee which registers are used. Register allocation is determined by the compiler and the ARM calling convention.
+
+Registers are much faster for the CPU to access than RAM, so the compiler tries to keep frequently used values in registers when practical.
+
 ## 2. Special Registers :
 
 -   R13 : Stack Pointer (SP)
