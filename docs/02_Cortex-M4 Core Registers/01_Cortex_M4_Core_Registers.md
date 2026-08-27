@@ -951,6 +951,9 @@ So the **reason for `PUSH {LR}`** is specifically:
 
 > `other_function()` needs to call another function, and that call will overwrite its LR. Therefore, it saves its original LR on the stack first.
 
+***LR is not always an ordinary function return address. When an exception occurs, LR receives a special value called an EXC_RETURN value. That value tells the processor important information about how to return from the exception.
+****
+
 ## R15 — Program Counter
 
 **The PC (Program Counter) tells the processor where it is executing in the program.**
