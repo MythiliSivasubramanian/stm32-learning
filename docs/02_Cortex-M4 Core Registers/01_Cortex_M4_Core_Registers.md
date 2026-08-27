@@ -206,6 +206,8 @@ R13 is the Stack Pointer register of the Cortex-M4. Cortex-M4 actually has two s
 1.   MSP : Main Stack Pointer
 2.   PSP : Process Stack Pointer
 
+So MSP and PSP are not two views of the same 32-bit physical register. They are two independent 32-bit stack-pointer registers. Then the processor chooses which one represents the active SP depending on the current execution mode.
+
 The SP contains a RAM address. More specifically, it points to the current location of the stack.
 
 For example:
