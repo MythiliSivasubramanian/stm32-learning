@@ -147,6 +147,194 @@ R0–R3 have special roles in the ARM procedure-call convention. R0–R3 → com
 
 Registers are much faster for the CPU to access than RAM, so the compiler tries to keep frequently used values in registers when practical.
 
+Consider this C function:
+```c
+int add(int a, int b)
+{
+    int result = a + b;
+    return result;
+}
+```
+Assume a Cortex-M4 and a normal C function call.
+
+1.	Which core registers would you expect to be involved in passing a and b to the function? 
+2.	Where would you expect the return value result to be placed? 
+3.	Which register contains the return address so execution can come back after add() finishes? 
+4.	Does the Cortex-M4 have to use exactly those registers in every possible situation, or can the compiler make different decisions?
+
+
+1.	Function arguments → R0–R3
+For the normal ARM procedure-call convention used by Cortex-M:
+    1st argument → R0
+    2nd argument → R1
+    3rd argument → R2
+    4th argument → R3
+
+For our function: int add(int a, int b) we would normally have: R0 = a, R1 = b. The important distinction: R0–R3 are designated by the calling convention for argument passing. It's not simply that "the compiler chooses any R0–R12. The compiler still has freedom in many circumstances, especially after optimization, but the ABI/calling convention establishes the interface between caller and callee.
+
+2.	For this function:
+```c
+int add(int a, int b)
+{
+    int result = a + b;
+    return result;
+} 
+```
+Where is the value of result stored ?
+
+The normal convention is: 
+```text
+R0 = a R1 = b
+ADD
+R0 = result
+```
+Then the function returns. There is no requirement for result to be stored in the stack at all. The compiler may keep result entirely in a register. In fact, with optimization, this entire function could essentially become:
+```asm
+ADD   R0, R0, R1
+BX    LR
+```
+Conceptually:
+Caller:
+```text
+R0 = 10
+R1 = 20
+   │
+   │ BL add
+   ▼
+┌─────────────┐
+│    add()    │
+│             │
+│ R0 = 10     │
+│ R1 = 20     │
+│             │
+│ R0 = 30     │ ← return value
+└─────────────┘
+   │
+   │ return using LR
+   ▼
+Caller
+```
+
+A C local variable does NOT automatically mean a RAM variable. It could live in a register,or  on the stack or optimized away completely. The compiler decides.
+
+3.	LR → return information 
+R14 = LR. For an ordinary function call such as: BL add  the BL instruction places return information in LR. Then the function can return using LR, conceptually BX LR.
+
+4	Compiler + calling convention 
+Just don't think: "The compiler can freely choose R0–R12 for anything, including function arguments." Instead think in layers:
+
+```text
+                 C source
+                    │
+                    ▼
+                Compiler
+                    │
+                    ▼
+          ARM calling convention
+                    │
+                    ▼
+          Register allocation
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+       R0–R3              R4–R12 etc.
+   argument/return       other purposes
+```
+
+For:
+
+```int c
+int add(int a, int b)
+{
+    int result = a + b;
+    return result;
+}
+```
+think:
+```text
+Caller
+  │
+  ├── R0 = a
+  ├── R1 = b
+  │
+  └── BL add
+          │
+          ▼
+       add()
+          │
+          ├── calculate a + b
+          │
+          └── R0 = return value
+          │
+          ▼
+       BX LR
+          │
+          ▼
+       Caller
+```
+
+And result doesn't have to exist in RAM.
+
+Where is a C local variable stored? It depends on compiler allocation and optimization. A local variable may reside in a register, on the stack, or potentially be optimized away completely.
+
+|                                    | **Example 1 — Function arguments**                    | **Example 2 — Local variables**       |
+| ---------------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| Code                               | `int add(int a, int b)`                               | `int add(void) { int a=5; int b=3; }` |
+| `a`, `b` are                       | **Function arguments**                                | **Local variables**                   |
+| Who provides the values?           | **Caller** provides them                              | Function itself initializes them      |
+| Calling convention involved?       | **Yes**                                               | **No**                                |
+| Typical registers                  | First arguments → **R0, R1, R2, R3**                  | Compiler decides                      |
+| Must `a` be in R0?                 | Normally **yes**, according to the calling convention | **No**                                |
+| Must `b` be in R1?                 | Normally **yes**, according to the calling convention | **No**                                |
+| Could variables be in RAM?         | Yes, depending on ABI/type/calling situation          | Yes                                   |
+| Could variables stay in registers? | Yes                                                   | Yes                                   |
+| Could compiler optimize them away? | Potentially, depending on circumstances               | **Yes**                               |
+
+
+** Example 1 — Arguments** 
+```c
+int add(int a, int b)
+{
+    return a + b;
+}
+```
+Conceptually:
+```text
+Caller
+  │
+  ├── R0 = a
+  ├── R1 = b
+  │
+  ▼
+add()
+  │
+  └── R0 = a + b    ← return value
+Here R0/R1 are dictated by the ARM procedure-call convention
+```
+**Example 2 — Local variables**
+```c
+int add(void)
+{
+    int a = 5;
+    int b = 3;
+    int c = a + b;
+}
+```
+There is no requirement that:
+```text
+a → R0
+b → R1
+c → R2
+The compiler might choose:
+a → R0
+b → R1
+c → R0
+or:
+a, b, c → stack
+or optimize some/all of them away.
+```
+Function arguments have an ABI/calling-convention-defined register interface; local variables do not. The compiler decides whether local variables live in registers, on the stack, or are optimized away.
+
 ## 2. Special Registers :
 
 -   R13 : Stack Pointer (SP)
