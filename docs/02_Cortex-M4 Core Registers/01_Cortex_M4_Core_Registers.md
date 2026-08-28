@@ -3172,7 +3172,7 @@ returns to application
 ```
 Normally, the processor can respond to interrupts/exceptions. But sometimes software needs a short section where it says, normal maskable interrupts not to disturb it right now. That's where PRIMASK comes in.
 
-**PRIMASK is a 1-bit interrupt-mask register.** Its important bit is bit 0.
+**PRIMASK is a 32 bit interrupt-mask register.** Its important bit is bit 0.
 ```text
 PRIMASK
 31                         1   0
