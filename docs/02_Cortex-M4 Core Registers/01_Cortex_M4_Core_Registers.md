@@ -2761,6 +2761,52 @@ LR  → EXC_RETURN
 Stacked LR → old/interrupted LR
 Stacked PC → old/interrupted PC
 ```
+***Exception Entry :**
+Suppose:
+```text
+Thread Mode
+PSP active
+
+and a timer interrupt becomes eligible for servicing.
+```
+Conceptually:
+```text
+
+                 Before interrupt
+
+                 Thread Mode
+                     │
+                     │
+                  PSP active
+                     │
+                     ▼
+              Application code
+                     │
+                     │
+              Timer interrupt
+                     │
+                     ▼
+              Exception Entry
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+          ▼                     ▼
+     Automatic               Vector fetch
+     stacking                     │
+          │                       │
+          ▼                       ▼
+   Save interrupted        Find ISR address
+      context                    │
+          │                       │
+          └──────────┬────────────┘
+                     ▼
+                Handler Mode
+                     │
+                     │ MSP active
+                     ▼
+              Timer_IRQHandler()
+```
+The processor automatically performs the stacking; the ISR does not need to execute PUSH instructions for the basic frame.
 
 #### IPSR - Interrupt Program Status register
 The IPSR is a 32-bit register. But on Cortex-M4, only the lowest 9 bits are used for the Exception Number.
