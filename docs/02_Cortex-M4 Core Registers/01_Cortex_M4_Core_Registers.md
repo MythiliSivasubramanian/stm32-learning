@@ -2717,6 +2717,51 @@ ICI stands for Interruptible-Continuable Instruction. This is more specialized. 
 
 Lets learn more in detail about IT bits and ICI later.
 
+***Exception Entry, Automatic Stacking and Exception Return:***
+When an interrupt or exception occurs, the processor is executing some existing code.
+```text
+Example:
+
+Thread Mode
+    │
+    │ executing application code
+    │
+    ▼
+main()
+    │
+    │
+    │ Timer interrupt occurs
+    ▼
+?????
+```
+The processor cannot simply jump to the interrupt handler and forget where it was.
+
+It must remember enough information to later say:
+
+"The interrupt handler is finished. Continue exactly where the interrupted program should continue."
+
+Therefore, during exception entry, the Cortex-M4 automatically saves part of the interrupted execution context on the stack.
+
+This is called stacking.
+
+The saved structure is called the exception stack frame.
+
+**What happens to LR during exception entry**
+Before interrupt:
+```text
+LR = normal function return address
+PC = interrupted instruction
+```
+Then:
+```text
+Exception entry
+
+LR  → EXC_RETURN
+     ↓
+Stacked LR → old/interrupted LR
+Stacked PC → old/interrupted PC
+```
+
 #### IPSR - Interrupt Program Status register
 The IPSR is a 32-bit register. But on Cortex-M4, only the lowest 9 bits are used for the Exception Number.
 ```text
