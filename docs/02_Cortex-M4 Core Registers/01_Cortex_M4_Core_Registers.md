@@ -3188,6 +3188,72 @@ These are 8 words = 32 bytes.
 ```        
 The Cortex-M4 documentation describes this as the eight-word stack frame.
 
+**What Happens to the Old LR? :**
+
+This is one of the most important concepts I learned today. 
+
+Suppose before the interrupt:
+```text
+LR = 0x08001235
+PC = 0x08002000
+```
+The processor accepts the interrupt. The old LR must not be lost because the interrupted program may need it later.
+
+Therefore:
+```text
+                 Before exception
+
+LR = 0x08001235
+PC = 0x08002000
+
+After exception entry:
+
+                 Handler
+
+Current LR = EXC_RETURN
+
+Stack:
+    ...
+    old LR = 0x08001235
+    old PC = 0x08002000
+    ...
+```
+Conceptually:
+```text
+
+                 CPU registers
+
+             LR = EXC_RETURN
+                    │
+                    │
+                    ▼
+              ┌───────────┐
+              │ EXC_RETURN│
+              └───────────┘
+
+
+                 Stack
+
+              ┌───────────┐
+              │   xPSR    │
+              ├───────────┤
+              │ old PC    │ ← 0x08002000
+              ├───────────┤
+              │ old LR    │ ← 0x08001235
+              ├───────────┤
+              │   R12     │
+              ├───────────┤
+              │   R3      │
+              ├───────────┤
+              │   R2      │
+              ├───────────┤
+              │   R1      │
+              ├───────────┤
+              │   R0      │
+              └───────────┘
+```
+This is the distinction between current LR and stacked LR
+
 **Why R4–R11 Are Not Automatically Stacked :**
 
 R4–R11 are callee-saved registers according to the ARM procedure-call convention. That means a function that modifies them is responsible for preserving their previous values. Therefore, the processor does not need to save all of them automatically on every exception.
