@@ -3150,6 +3150,68 @@ The privileged handler/OS controls what happens next. This is why Cortex-M4 has 
    ```
 This becomes very important when we later study FreeRTOS, because tasks can run using PSP while the kernel operates with privileged access.
 
+** The Basic Exception Stack Frame :**
+
+For the basic exception frame, the processor automatically saves:
+```text
+R0
+R1
+R2
+R3
+R12
+LR
+PC
+xPSR
+
+These are 8 words = 32 bytes.
+```
+```text
+        Higher memory address
+        ┌───────────────┐
+        │     xPSR      │
+        ├───────────────┤
+        │      PC       │
+        ├───────────────┤
+        │      LR       │
+        ├───────────────┤
+        │      R12      │
+        ├───────────────┤
+        │      R3       │
+        ├───────────────┤
+        │      R2       │
+        ├───────────────┤
+        │      R1       │
+        ├───────────────┤
+        │      R0       │ ← lowest address
+        └───────────────┘
+        Lower memory address
+```        
+The Cortex-M4 documentation describes this as the eight-word stack frame.
+
+**Why R4–R11 Are Not Automatically Stacked :**
+
+R4–R11 are callee-saved registers according to the ARM procedure-call convention. That means a function that modifies them is responsible for preserving their previous values. Therefore, the processor does not need to save all of them automatically on every exception.
+
+For example, compiler-generated code may produce something like:
+
+PUSH {R4, R5, R6, LR}
+POP  {R4, R5, R6, PC}
+
+The exact registers saved depend on what the compiler needs.
+
+Therefore:
+```text
+Hardware exception entry
+        │
+        └── automatically saves:
+            R0-R3, R12, LR, PC, xPSR
+
+
+Compiler-generated function/ISR code
+        │
+        └── may additionally save:
+            R4-R11, etc.
+```
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
