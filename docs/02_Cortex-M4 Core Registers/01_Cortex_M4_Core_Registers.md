@@ -3316,6 +3316,62 @@ Exception return
   ↓
 restored
 ```
+**PSP → Exception Entry → MSP :**
+Suppose `CONTROL.SPSEL = 1` and the processor is currently in `Thread Mode`. Therefore PSP is active in Thread Mode. Now a timer interrupt occurs.
+```text
+Before interrupt
+             Thread Mode
+                  │
+             PSP active
+                  │
+                  ▼
+        Application / Task
+Exception entry
+```
+The interrupted context is stacked using the current stack. Conceptually,
+```text
+             PSP
+              │
+              ▼
+       ┌─────────────┐
+       │    xPSR     │
+       │     PC      │
+       │     LR      │
+       │     R12     │
+       │     R3      │
+       │     R2      │
+       │     R1      │
+       │     R0      │
+       └─────────────┘
+```
+Then execution enters Handler Mode.
+```text
+Handler Mode
+             Handler Mode
+                  │
+                  ▼
+             MSP active
+                  │
+                  ▼
+         Timer_IRQHandler()
+```
+So:
+```text
+Thread Mode
+    │
+    │ PSP
+    ▼
+Automatic stacking
+    │
+    ▼
+Handler Mode
+    │
+    │ MSP
+    ▼
+ISR
+```
+The PSP is not destroyed. It remains available for the interrupted Thread context.
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
