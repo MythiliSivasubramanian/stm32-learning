@@ -3292,6 +3292,30 @@ Stacked PC
 ```
 During exception return, the saved PC is restored so that the interrupted program can continue. **The stacked PC contains the return address for the interrupted execution.** The processor's exception mechanism saves the address needed to resume the interrupted program.
 
+**What Happens to interrupted xPSR?**
+The processor also saves the interrupted xPSR. Because the interrupted program may have had important processor state such as,
+
+```text
+N flag
+Z flag
+C flag
+V flag
+execution state
+exception state
+```
+The processor needs to restore that state when returning.
+
+```text
+Exception entry
+
+xPSR
+  ↓
+saved on stack
+  ↓
+Exception return
+  ↓
+restored
+```
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
