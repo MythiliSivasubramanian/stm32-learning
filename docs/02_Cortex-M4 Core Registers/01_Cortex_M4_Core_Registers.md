@@ -3372,6 +3372,18 @@ ISR
 ```
 The PSP is not destroyed. It remains available for the interrupted Thread context.
 
+**Does CONTROL.SPSEL Change when the processor enters or returns from handler mode or Thread mode**
+
+No. Suppose `CONTROL.SPSEL = 1` before the interrupt. After entering Handler Mode `CONTROL.SPSEL = 1` can still remain set. CONTROL.SPSEL has no effect in Hanler Mode and it does not use PSP.
+```text
+CONTROL.SPSEL
+      │
+      │ ignored in Handler Mode
+      ▼
+     MSP
+```
+Therefore `CONTROL.SPSEL = 1` does not mean that PSP is currently active everywhere (in Handler mode). It means, When in Thread Mode, PSP is selected. Handler Mode always uses MSP.
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
