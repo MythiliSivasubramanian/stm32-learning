@@ -3278,6 +3278,20 @@ Compiler-generated function/ISR code
         └── may additionally save:
             R4-R11, etc.
 ```
+**What Happens to the interrupted PC?**
+The interrupted PC is also automatically saved in the exception frame. It represents the return address—the address at which execution should resume after exception handling.
+
+For example: Before interrupt, PC = 0x08002000. The processor saves the interrupted return address in the stack frame.
+
+Conceptually:
+```txt
+Stacked PC
+    │
+    ▼
+0x08002000
+```
+During exception return, the saved PC is restored so that the interrupted program can continue. **The stacked PC contains the return address for the interrupted execution.** The processor's exception mechanism saves the address needed to resume the interrupted program.
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
