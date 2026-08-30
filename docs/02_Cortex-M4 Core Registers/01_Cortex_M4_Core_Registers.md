@@ -3372,6 +3372,54 @@ ISR
 ```
 The PSP is not destroyed. It remains available for the interrupted Thread context.
 
+**Does CONTROL.SPSEL Change when the processor enters or returns from handler mode or Thread mode**
+
+No. Suppose `CONTROL.SPSEL = 1` before the interrupt. After entering Handler Mode `CONTROL.SPSEL = 1` can still remain set. CONTROL.SPSEL has no effect in Hanler Mode and it does not use PSP.
+```text
+CONTROL.SPSEL
+      │
+      │ ignored in Handler Mode
+      ▼
+     MSP
+```
+Therefore `CONTROL.SPSEL = 1` does not mean that PSP is currently active everywhere (in Handler mode). It means, When in Thread Mode, PSP is selected. Handler Mode always uses MSP.
+
+**What Exactly Is EXC_RETURN? ´**
+
+When an exception is entered, the processor writes a special value into LR. This value is called `EXC_RETURN`. For example: `LR = 0xFFFFFFFD`. This is not a normal memory address. It is a special code that the processor recognizes during exception return.
+Conceptually,
+```text
+LR
+ │
+ └── EXC_RETURN
+       │
+       ├── How should I return?
+       ├── Which mode?
+       ├── Which stack?
+       └── Which stack-frame format?
+```
+One important example is `EXC_RETURN = 0xFFFFFFFD` For the Cortex-M4 exception-return encoding, this means to Return to Thread Mode, using the PSP, with the non-floating-point/basic frame. So,
+```text
+0xFFFFFFFD
+       │
+       ├── Return → Thread Mode
+       ├── Restore → PSP
+       └── Basic/non-FP exception frame
+```
+It carries information needed by the exception-return mechanism.
+**Common EXC_RETURN Values :**
+For the Cortex-M4:
+```text 
+EXC_RETURN	Return
+0xFFFFFFF1	Handler Mode, restore from MSP
+0xFFFFFFF9	Thread Mode, restore from MSP
+0xFFFFFFFD	Thread Mode, restore from PSP
+0xFFFFFFE1	Handler Mode, floating-point state, MSP
+0xFFFFFFE9	Thread Mode, floating-point state, MSP
+0xFFFFFFED	Thread Mode, floating-point state, PSP
+```
+ARM documents these encodings explicitly
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
