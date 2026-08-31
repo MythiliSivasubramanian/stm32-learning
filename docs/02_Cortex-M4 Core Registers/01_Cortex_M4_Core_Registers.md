@@ -3451,6 +3451,55 @@ Conceptually:
 ```
 ARM specifically states that EXC_RETURN indicates which stack pointer corresponds to the stack frame and the previous operating mode.
 
+**How Does BX LR Cause Exception Return?**
+
+Suppose the ISR contains `BX LR` and `LR = 0xFFFFFFFD`. A normal interpretation would be "Branch to the address contained in LR." But 0xFFFFFFFD is recognized as an EXC_RETURN value. Therefore the processor initiates the exception-return sequence rather than treating it as a normal code address.
+Conceptually:
+```text
+Handler Mode
+
+LR = 0xFFFFFFFD
+        │
+        ▼
+     BX LR
+        │
+        ▼
+EXC_RETURN recognized
+        │
+        ▼
+Exception return sequence
+        │
+        ├── determine return mode
+        ├── determine stack
+        ├── restore stack frame
+        └── restore processor state
+        │
+        ▼
+Thread Mode
+```
+**Does BX LR Directly Copy Stacked LR?**
+No. This was one of the concept that I misunderstood earlier and corrected. 
+Incorrect mental model:
+```text
+BX LR
+  ↓
+copy stacked LR → LR
+```
+Correct mental model:
+```text
+BX LR
+  ↓
+LR contains EXC_RETURN
+  ↓
+EXC_RETURN recognized
+  ↓
+exception-return mechanism
+  ↓
+unstack exception frame
+  ↓
+restore LR, PC, xPSR, etc.
+```
+The stacked LR is eventually restored as part of restoring the exception frame.
 
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
