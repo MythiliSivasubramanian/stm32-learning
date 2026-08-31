@@ -3501,6 +3501,120 @@ restore LR, PC, xPSR, etc.
 ```
 The stacked LR is eventually restored as part of restoring the exception frame.
 
+**Exception Return Complete Steps**
+Suppose Currently the processor in Thread Mode and PSP is active and a timer interrupt occurs.
+
+Step 1 — Interrupt accepted
+```text
+Thread Mode PSP
+     │
+     ▼
+Exception Entry
+```
+Step 2 — Hardware stacking
+```text
+PSP
+ ↓
+R0
+R1
+R2
+R3
+R12
+LR
+PC
+xPSR
+```
+Step 3 — EXC_RETURN placed in LR. LR = 0xFFFFFFFD
+Step 4 — Handler starts. The processor enters Handler Mode with MSP active.
+Step 5 — ISR finishes `BX LR`
+Step 6 — Exception-return mechanism : The processor recognizes EXC_RETURN.
+Step 7 — Restore context
+The processor restores:
+```text
+R0
+R1
+R2
+R3
+R12
+LR
+PC
+xPSR
+```
+Step 8 — Resume Thread Mode. Because the EXC_RETURN indicates Thread Mode + PSP:
+```text
+Thread Mode
+PSP active
+```
+Execution resumes using the restored PC.
+**Complete Picture:**
+Lets Put everything together:
+```text
+                 APPLICATION / TASK
+                 ──────────────────
+                    Thread Mode
+                       │
+                    PSP active
+                       │
+                       │
+               Timer interrupt
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ EXCEPTION ENTRY │
+              └─────────────────┘
+                       │
+                       │
+              Hardware stacking
+                       │
+                       ▼
+          ┌────────────────────────┐
+          │ R0                     │
+          │ R1                     │
+          │ R2                     │
+          │ R3                     │
+          │ R12                    │
+          │ old LR                 │
+          │ old PC                 │
+          │ old xPSR               │
+          └────────────────────────┘
+                       │
+                       │
+              LR = EXC_RETURN
+                       │
+                       ▼
+                Handler Mode
+                       │
+                    MSP active
+                       │
+                       ▼
+              Timer_IRQHandler()
+                       │
+                       │
+                    BX LR
+                       │
+                       ▼
+             EXC_RETURN recognized
+                       │
+                       ▼
+              Exception return
+                       │
+                       ▼
+              Restore stack frame
+                       │
+                       ├── LR
+                       ├── PC
+                       ├── xPSR
+                       └── other registers
+                       │
+                       ▼
+                 Thread Mode
+                       │
+                    PSP active
+                       │
+                       ▼
+             Resume interrupted code
+```
+This is the core mental model I lernt/ understood from today. 
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
