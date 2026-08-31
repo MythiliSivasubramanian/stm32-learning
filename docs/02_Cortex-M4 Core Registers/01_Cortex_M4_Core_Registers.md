@@ -3188,6 +3188,11 @@ These are 8 words = 32 bytes.
 ```        
 The Cortex-M4 documentation describes this as the eight-word stack frame.
 
+**Stack Alignment:**
+There is another detail worth knowing for debugging. The architecture can insert an alignment word when required so that the exception stack frame satisfies the configured stack-alignment requirement. The `STKALIGN` bit in the `Configuration Control Register (CCR)` controls this behavior. Therefore, in a real debugger, don't assume, Exactly 8 words are always the entire memory footprint of every exception frame.
+
+The basic logical frame is 8 words, but alignment and floating-point context can add additional stack space.
+
 **What Happens to the Old LR? :**
 
 This is one of the most important concepts I learned today. 
@@ -3419,6 +3424,33 @@ EXC_RETURN	Return
 0xFFFFFFED	Thread Mode, floating-point state, PSP
 ```
 ARM documents these encodings explicitly
+
+**Why Does EXC_RETURN Need Stack Information?**
+Lets Imagine this,
+```text
+Thread Mode
+PSP active
+      │
+      │ interrupt
+      ▼
+Handler Mode
+MSP active
+```
+The processor now has, MSP → handler stack, PSP → interrupted Thread stack frame. When the handler finishes, the processor must know, Which stack contains the context I need to restore?. That's one of the things encoded by EXC_RETURN.
+
+Conceptually:
+```text
+                  EXC_RETURN
+                      │
+             ┌────────┴────────┐
+             │                 │
+          Return mode       Stack info
+             │                 │
+             ▼                 ▼
+          Thread             PSP
+```
+ARM specifically states that EXC_RETURN indicates which stack pointer corresponds to the stack frame and the previous operating mode.
+
 
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
