@@ -3615,6 +3615,50 @@ Lets Put everything together:
              Resume interrupted code
 ```
 This is the core mental model I lernt/ understood from today. 
+
+**What About a Handler Being Interrupted by another interrupt?**
+Suppose:
+```text
+Thread Mode
+    │
+    ▼
+Timer Handler
+    │
+    │ executing in Handler Mode
+    │
+    ▼
+Higher-priority interrupt
+    │
+    ▼
+Second Handler
+```
+The second exception can preempt the first handler if its priority is sufficient. That creates nested exceptions. ARM explicitly describes an exception handler being interrupted by another exception as a nested exception.
+
+Conceptually:
+```text
+Thread
+  │
+  ▼
+Handler A
+  │
+  │ higher-priority exception
+  ▼
+Handler B
+  │
+  ▼
+return
+  │
+  ▼
+Handler A
+  │
+  ▼
+return
+  │
+  ▼
+Thread
+```
+Notice that Handler Mode remains Handler Mode throughout. The stack is managed using MSP.
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
