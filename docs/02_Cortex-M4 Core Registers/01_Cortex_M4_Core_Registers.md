@@ -3659,6 +3659,62 @@ Thread
 ```
 Notice that Handler Mode remains Handler Mode throughout. The stack is managed using MSP.
 
+**Pending, Active and Active + Pending exception states:**
+An exception can have different states. ARM defines all four states.
+- ***Inactive :*** 
+    Not pending AND Not active
+- ***Pending :***
+  Exception requested but not currently being serviced
+- ***Active :***
+  Its handler is currently executing
+- ***Active + Pending :***
+  An exception can be active while another request from the same source is pending.
+
+Masking can be one reason an interrupt cannot currently be serviced, but pending simply describes its state of waiting for service.
+
+**What Happens When the Interrupt Is Accepted?**
+Suppose, Timer IRQ is pending and has sufficient priority. Once the processor accepts it:
+```text
+Pending
+   │
+   ▼
+Exception Entry
+   │
+   ▼
+Handler starts
+   │
+   ▼
+Active
+```
+If no higher-priority exception interrupts the entry process, the processor changes the corresponding interrupt from pending to active as it begins servicing it.
+
+**Tail-Chaining :**
+This is an advanced but very useful Cortex-M feature. Lets deep dive this later when we learn mnore about exceptions handling.
+```text
+Handler A
+   │
+   │ finishes
+   │
+   ▼
+Handler B is already pending
+```
+Normally, we might imagine:
+```
+Handler A
+   ↓
+restore Thread context
+   ↓
+enter Handler B
+```
+But Cortex-M can optimize this. Instead:
+```
+Handler A
+   │
+   ▼
+Handler B
+```
+without unnecessarily performing a full exception return and then another exception entry. This is called tail-chaining and improves exception-handling efficiency. More about this later.
+
 **Privileged → Unprivileged:**
 - A privileged Thread Mode program can set CONTROL.nPRIV = 1. Software can deliberately set CONTROL.nPRIV = 1 using the MSR CONTROL instruction (typically through an assembly instruction or compiler/CMSIS intrinsic). The processor then executes Thread Mode as unprivileged.
 
