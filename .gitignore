@@ -1,7 +1,7 @@
 # STM32CubeIDE build output
-projects/LED_ON_stm32/Debug/
-projects/LED_ON_stm32/Release/
+private/projects/LED_ON_stm32/Debug/
+private/projects/LED_ON_stm32/Release/
 
 # Tooling noise
 .DS_Store
-projects/LED_ON_stm32/.cproject
+private/projects/LED_ON_stm32/.cproject
