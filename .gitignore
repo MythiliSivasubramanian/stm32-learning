@@ -4,4 +4,5 @@ private/projects/LED_ON_stm32/Release/
 
 # Tooling noise
 .DS_Store
+private/
 private/projects/LED_ON_stm32/.cproject
