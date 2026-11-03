@@ -1,61 +1,19 @@
-# STM32 Learning Journey
+# My STM32 Learning Log
 
-Learning STM32 and Embedded Systems from scratch using C and STM32 microcontrollers.
+I’m learning embedded systems and STM32 step by step. I use this repository to keep my notes, write down what I understand, and connect the theory to practical experiments and keep track of my progress.
 
-This repository documents my hands-on learning journey in:
-- Embedded C
-- STM32 peripherals
-- Register-level understanding
-- Bare-metal programming concepts
-- Debugging and problem-solving
+I’m starting with the basics and building up to how the processor, memory, and peripherals work together. I’ll keep adding to these notes as I learn more.
 
-## Goals
+I want to understand what the code is doing and how it interacts with the hardware, instead of just copying examples. I’m starting with the fundamentals, then moving into GPIO, timers, interrupts, and register-level details.
 
-- Build strong foundations in Embedded Systems
-- Understand how hardware interacts with software
-- Learn low-level programming concepts deeply
-- Practice writing efficient and readable embedded C code
+# Topics
 
-## Learning Path
-
-My STM32 learning journey will follow:
-
-### Phase 1: Basics
-- What is STM32 and overview
-- What is embedded system
+- Embedded systems
+- STM32 overview
 - Bitwise operations
-- stm32 memory
-- M4 Cortex Core registers
-- LED blinking (HAL library)
-
-### Phase 2: GPIO Deep Understanding
-- Input/output pins
-- Button handling
-- Real hardware interaction
-
-### Phase 3: Communication
-- UART (serial communication)
-- SPI
-- I2C
-
-### Phase 4: Advanced
-- Timers
-- Interrupts
-- Memory concepts
-- Register-level programming
-
-## Repository Structure
-
-```text
-stm32-learning/
-├── docs/
-│   └── 01_Fundamentals/
-└── projects/
-    └── LED_ON_stm32/
-```
-
-- `docs/01_Fundamentals/` contains concept notes and theory writeups.
-- `projects/LED_ON_stm32/` contains the STM32CubeIDE project files, source code, drivers, linker scripts, and build output folder.
-
-This repository is part of my self-taught embedded systems learning journey.
-I focus on understanding concepts deeply rather than rushing through tutorials.
+- STM32 architecture and memory
+- GPIO and pin control
+- GPIO input and button handling
+- Timers and interrupts
+- Cortex-M4 core registers
+- Practical register experiments
