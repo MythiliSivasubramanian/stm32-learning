@@ -15,3 +15,12 @@ For complete theory explanation of M4 Cortex core registers, refer the file 01_C
 - MSP and PSP
 - Function calls and nested function calls
 - Exception stacking
+
+### Key understanding
+- BL stores the return address in LR and branches to the function.
+- Nested function calls can overwrite LR, so it must be preserved.
+- The stack grows towards lower memory addresses.
+- Cortex-M4 automatically saves the basic exception stack frame.
+
+### Practical work
+Theory revision completed. Debugger experiments are pending.
