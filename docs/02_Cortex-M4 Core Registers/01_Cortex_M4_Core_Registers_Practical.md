@@ -181,13 +181,217 @@ The stack is used for temporary data such as saved registers, function call data
 
 ### 7. Questions I want to answer in upcoming practicals
 
-- Why is SP currently `0x2001FFFC`?
-- What exactly does PC point to while the processor is halted?
-- How does PC change when I execute the next instruction?
+- Why is SP currently `0x2001FFFC`? Is the debugger showing MSP or PSP?
+- What is the initial SP in the vector table?
+- What exactly does PC point to while the processor is halted? / What does PC point to while halted?
+- How does PC change when I execute the next instruction? / How does PC change after one instruction?
+- Which instructions are executing?
 - How does LR get updated during a function call?
 - Can I observe PUSH and POP changing SP?
 - Is the debugger showing MSP or PSP here, and how can I confirm it from CONTROL.SPSEL and the execution mode?
 - What is the initial SP value in the vector table, and at what point does it change during startup?
 - Which instructions are executing at the breakpoint, and how can I relate the disassembly to the C source?
 
+#### Why is SP currently 0x2001FFFC?
+We already know from the reference manual of MCU STM32F407VG:
 
+|Memory | Start address | End address | Size |
+|-------|---------------|-------------|------|
+|SRAM1 | 0x20000000 | 0x2001BFFF | 112 KB |
+|SRAM2 | 0x2001C000 | 0x2001FFFF | 16KB |
+
+Together, they form a contiguous SRAM region from 0x20000000 to 0x2001FFFF of size 128KB. Since 0x2001FFFF is the last valid byte, the next address is 0x2001FFFF + 1 = 0x20020000. That makes 0x20020000 the address immediately after the SRAM region. It is not itself a valid SRAM byte address. The usual initial stack pointer value is 0x20020000. But so far, we've derived the top boundary of SRAM. We haven't yet proved that the processor's initial SP is set to that value. Lets check our linker script (STM32F407VGTX_FLASH.ld) and startup assembly file (startup_stm32f407vgtx.s)
+
+In linker script, usually the stack's top address is defined as ```text _estack = ORIGIN(RAM) + LENGTH(RAM); ``` and the Stack in ARM Cortex M4 grows downwards. 
+
+My STM32F407VG configuration:
+```text
+ORIGIN(RAM) = 0x20000000
+LENGTH(RAM) = 128K = 0x20000
+
+_estack = 0x20000000 + 0x20000 = 0x20020000 
+```
+1Kb = 1024 bytes. Hence 128K is 128 * 1024 = 131,072 in decimal. So, we are converting the decimal number 131,072 into hexadecimal which is 0x20000 bytes.
+
+In the startup assembly file (startup_stm32f407vgtx.s), attached image below, the first word `.word _estack` contains the initial stack pointer value. The second `word Reset_Handler`  contains the Reset Handler address. The Cortex-M4 hardware loads the initial MSP from that first vector-table entry during reset.
+
+![alt text](images/_estack_in_startup_file.png)
+
+**But why does the debugger shows 0x2001FFFC instead of 0x20020000?**
+
+We know:
+- At reset, the processor loads MSP = 0x20020000.(the Cortex-M4 loads the initial MSP from the first vector-table entry during reset. The startup code later also explicitly sets SP using _estack.)
+- Later, the debugger stops at our breakpoint inside main() and at that point, SP = 0x2001FFFC because between reset and reaching main(), the processor executes the startup code.Lets inspect the actual startup instructions which made to move 4 bytes from 0x20020000.
+
+In STM32CubeIDE:
+1. In main.c set the breakpoint at for(;;); in main()
+2. Start existing debug session.
+3. Open the Disassembly view.
+4. Look at the instructions around the current execution address.
+
+In debug session, disassembly view , these instructions before  main:
+    push    {r7}          // Save old R7 on stack
+    add     r7, sp, #0    // Copy SP into R7
+    
+Point	Value
+Initial SP	0x20020000
+After PUSH {R7}	0x2001FFFC
+After ADD R7, SP, #0	0x2001FFFC
+R7 after ADD
+
+Although `main()` does not have any local variables or require additional temporary storage, the compiler generated `PUSH {R7}` to preserve the previous value of R7. It then used R7 as a frame pointer by copying the current SP value into it.
+
+The 4 bytes used here are for saving the previous R7 value, not for storing a temporary variable.
+
+The compiler could potentially generate different instructions without using a frame pointer, depending on its compilation settings and optimisation choices.
+
+And thats why  SP was 4 bytes below _estack!
+
+if main() is running forever, why does it need to save R7 at all? Who generated these assembly instructions — we, the STM32 hardware, or the C compiler? The C compiler generated those instructions from our C code 
+```c
+int main(void)
+{
+    for (;;);
+}
+```
+The compiler translated it into ARM assembly:
+```asm
+push    {r7}
+add     r7, sp, #0
+b.n     0x80001cc
+```
+
+But here's something interesting, I didn't declare any variables in main(). I didn't ask the compiler to use R7 either. So why did the compiler save R7 and use it as a frame pointer? Why this particular compiler generated those instructions?
+
+Let's investigate the actual compiler behaviour.
+
+What I need to find out are these three questions:
+1. Compiler settings: Is frame-pointer generation enabled in my STM32CubeIDE project?
+2. Compiler version and options: Which GCC version and compilation flags are being used?
+3. Code-generation experiment: If I disable frame-pointer generation, does PUSH {R7} disappear?
+
+My goal is to understand whether the instructions are generated because of compiler settings, optimisation choices, or something else.
+
+**Step 1 — Inspect the compiler settings in STM32CubeIDE to check if complier is allowed to optimize**
+1. Right-click STM32F407_BareMetal_Learning.
+2. Select Properties.
+3. Expand C/C++ Build and select Settings.
+5. Open MCU GCC Compiler -> Optimization.
+
+![alt text](images/MPU_GCC_Compiler_optimazation.png)
+
+Project is compiling with -O0 which means **no compiler optimisation**. GCC tries to preserve a straightforward relationship between my C source and the generated instructions which is useful for debugging.
+
+**Step 2 — Find the actual compiler command**
+TM32F407_BareMetal_Learning -> Project Properties -> C/C++ Build -> Settings.
+1. Select MCU GCC Compiler -> Miscellaneous.
+2. Look for the compiler flags / additional options.
+
+![alt text](images/MCU_GCC_Compiler_flags.png)
+
+Nothing is listed under other flags and nothing is listed under additional object files. It means no additional compiler flags have been explicitly entered in that section. We haven't found the reason yet as why the 4 bytes is been rerserved in stack. 
+
+**Step 3 — Check the actual compiler command**
+Let's inspect the command GCC actually receives. Make GCC compile main.c again so we can see its actual command.
+Force a recompilation 
+1. Open main.c, add a space at the end of a line, then save it.
+2. Right-click your project -> Build Configurations -> Set Active -> Debug (if it isn't already selected).
+3. Select Project -> Build Project.
+4. Open the Console view at the bottom of CubeIDE.
+
+![alt text](images/build_results.png)
+
+Now we have the actual GCC command. We can investigate this properly. Let's examine the important parts, what the compiler command tells.
+```bash
+arm-none-eabi-gcc "../Src/main.c" \
+-mcpu=cortex-m4 \
+-std=gnu11 \
+-g3 \
+-O0 \
+-ffunction-sections \
+-fdata-sections \
+-Wall \
+-fstack-usage \
+...
+-mthumb
+```
+
+The important options are:
+| Option	| Meaning |
+|-----------|---------|
+| -mcpu=cortex-m4 | Generate instructions for Cortex-M4 |
+| -O0 | Disable optimisation |
+| -g3 |	Include debugging information |
+| -mthumb | Generate Thumb instructions |
+| -fstack-usage	| Generate information about stack usage |
+
+Below things are to be here noted:
+1. I have -O0, so optimisation is disabled. At -O0, GCC normally retains a frame pointer when generating code for this target.
+2. There is no explicit -fomit-frame-pointer or -fno-omit-frame-pointer in the command.
+This means I haven't explicitly instructed GCC to omit the frame pointer
+
+That is a strong explanation for the R7 instructions, but let me verify it experimentally.
+
+So, let me compile the same program twice:
+- First with our current settings (-O0).
+- Then with frame-pointer omission explicitly enabled (-fomit-frame-pointer).
+And will compare the generated assembly.
+
+Project Properties -> C/C++ Build -> Settings -> MCU GCC Compiler -> Miscellaneous 
+In the Additional flags field, enter `-fomit-frame-pointer` and Click Apply and Close.
+
+![alt text](images/MCU_GCC_Compiler_additional_flags.png)
+
+Build the project
+1. Select Project -> Clean.(Cleaning ensures that main.c is recompiled with the new option)
+2. Select Project -> Build Project.
+3. Inspect the generated assembly by opening the .list file after the successful build. The instructions under main()
+
+![alt text](images/instructions_main().png)
+
+The experiment worked. Now I have the answer to my original question **why does the debugger shows 0x2001FFFC instead of 0x20020000?**
+
+Comparing both outcomes, ie before adding -fomit-frame-pointer and after adding -fomit-frame-pointer. 
+
+Before adding -fomit-frame-pointer: 
+```asm
+080001c8:   push    {r7}
+080001ca:   add     r7, sp, #0
+080001cc:   b.n     0x80001cc <main+4>
+```
+
+After adding -fomit-frame-pointer:
+```asm
+080001c8:   nop
+080001ca:   b.n     0x80001c8 <main>
+```
+Here nop means no operation. It does not change the general-purpose registers or SP. b.n branches back to the same address, creating our infinite loop. So the CPU repeatedly executes the loop without needing R7.
+
+```asm
+push {r7}
+add  r7, sp, #0
+``` 
+has been disappreaded which reserved 4 bytes (making MSP move from 0x20020000 -4 bytes to 0x2001FFFC).
+
+What was here  proved: 
+Kept the optimization level at -O0 and changed only the frame-pointer compiler option.
+This tells:
+- GCC was generating a frame-pointer setup for main() in the original build. R7 was being used as the frame pointer. At -O0, my GCC build generated the R7 frame-pointer prologue. Adding -fomit-frame-pointer removed it in this particular experiment.
+- ie, fomit-frame-pointer instructed GCC not to generate that frame-pointer setup.
+- simple main() does not need R7 or a stack frame for its infinite loop.
+The important distinction: PUSH {R7} was not required by the functionality of main() program. It was part of the compiler-generated function setup.
+
+Lets verify with the debugger :
+Start debugging the newly built program and stop at the first instruction of main() to look at the SP register value.
+
+![alt text](images/Sp_pc_values.png)
+
+At the first instruction of main() ``` SP = 0x20020000 ```.  SP remained at its initial value 0x20020000 and not 0x2001FFFC. 
+
+### Conclusion :
+Now observed the complete connection:
+1. Linker defines _estack = 0x20020000.
+2. Startup code loads this value into SP.
+3. Execution reaches main().
+4. Without the frame-pointer prologue, SP remains 0x20020000.
+5. With PUSH {R7}, SP becomes 0x2001FFFC.
