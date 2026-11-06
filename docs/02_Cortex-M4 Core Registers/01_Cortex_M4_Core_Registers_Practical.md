@@ -377,7 +377,7 @@ What was here  proved:
 Kept the optimization level at -O0 and changed only the frame-pointer compiler option.
 This tells:
 - GCC was generating a frame-pointer setup for main() in the original build. R7 was being used as the frame pointer. At -O0, my GCC build generated the R7 frame-pointer prologue. Adding -fomit-frame-pointer removed it in this particular experiment.
-- ie, fomit-frame-pointer instructed GCC not to generate that frame-pointer setup.
+- i.e., `-fomit-frame-pointer` instructed GCC not to generate that frame-pointer setup.
 - simple main() does not need R7 or a stack frame for its infinite loop.
 The important distinction: PUSH {R7} was not required by the functionality of main() program. It was part of the compiler-generated function setup.
 
@@ -395,3 +395,25 @@ Now observed the complete connection:
 3. Execution reaches main().
 4. Without the frame-pointer prologue, SP remains 0x20020000.
 5. With PUSH {R7}, SP becomes 0x2001FFFC.
+
+As I understood, why the debugger was showing SP as 0x2001FFFC initially, the second part of the question is to understand if SP is MSP or PSP? And how do we confirm that?
+
+At the breakpoint inside main(), will investigate whether the debugger's SP is showing MSP or PSP, and how CONTROL.SPSEL helps to confirm it directly in STM32CubeIDE.
+
+**Step 1 — Open the CONTROL register**
+1. Start your debug session.
+2. Stop execution at the first instruction of main().
+3. Open Window -> Show View -> Other -> Debug -> Registers. Expand the Special Registers section (if available).
+4. Find the CONTROL register.
+
+![alt text](images/MSP_PSP_Control.png)
+
+**Debugger observations:**
+Register    :   Value
+CONTROL     :   0x00000000
+MSP         :   0x20020000
+PSP         :   0x00000000
+
+
+In CONTROL register, bit 0 and bit 1 is 0. Bit 0 of CONTROL register is  nPRIV : 0 means privileged Thread mode. Bit 1 of CONTROL regsiter is SPSEL : 0 means Thread mode uses MSP. Program is currently executing main() in Thread mode. Since CONTROL.SPSEL = 0, the active stack pointer is MSP.
+Therefore, Active SP = MSP = 0x20020000 and PSP       = 0x00000000. This confirms that the debugger's SP value corresponds to MSP in this situation.
