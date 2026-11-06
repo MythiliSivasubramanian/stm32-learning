@@ -417,3 +417,16 @@ PSP         :   0x00000000
 
 In CONTROL register, bit 0 and bit 1 is 0. Bit 0 of CONTROL register is  nPRIV : 0 means privileged Thread mode. Bit 1 of CONTROL regsiter is SPSEL : 0 means Thread mode uses MSP. Program is currently executing main() in Thread mode. Since CONTROL.SPSEL = 0, the active stack pointer is MSP.
 Therefore, Active SP = MSP = 0x20020000 and PSP       = 0x00000000. This confirms that the debugger's SP value corresponds to MSP in this situation.
+
+### What exactly does PC point to while the processor is halted? / What does PC point to while halted? 
+First, let's use what I already observed. main() disassembly after adding -fomit-frame-pointer was,
+```text
+080001c8:   nop
+080001ca:   b.n  80001c8 <main>
+```
+
+And your debugger showed PC = 0x080001C8. 0x080001C8 is the address of the nop instruction (nop : no operation). That means the debugger has halted the processor with its execution position at the nop instruction. PC is not pointing to the C source line or to the entire main() function. It identifies the instruction address associated with the current execution position. When the processor is halted, PC represents the current execution position. It does not mean the processor has already executed that instruction.
+
+0x080001C8 -> address of nop.
+0x080001CA -> address of the next instruction, b.n.
+
