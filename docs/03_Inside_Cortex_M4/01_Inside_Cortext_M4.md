@@ -314,7 +314,123 @@ Ready to press F5 (Step into) and check PC, SP and R3.
 - SP = 0x2001FFF0 — stack pointer hasn't changed.
 - PC = 0x080001D4 — points to the next instruction.
 
+Now the next instruction is str r3, [sp, #4]. 
 
+![alt text](../screenshots/instruction_7.png)
+
+1. Calculate the destination address
+- SP = 0x2001FFF0
+- Offset = 4
+- Destination = 0x2001FFF4
+
+2. R3 contained 0, so the CPU stored four zero bytes at 0x2001FFF4 through 0x2001FFF7.
+
+**Memory view :**
+```text
+2001FFF0  1C000020  00000000  14000000  0A000000
+```
+The groups represent:
+|Address	|Contents	|Meaning|
+|-----------|------------|-------|
+|0x2001FFF0–F3	|1C000020|	Not our variable|
+|0x2001FFF4–F7	|00000000	|result = 0|
+|0x2001FFF8–FB	|14000000|	b = 20|
+|0x2001FFFC–FF	|0A000000|	a = 10|
+
+So all three local variables are now initialized in RAM.
+
+The next instruction is ```asm ldr r2, [sp, #12]```. This time, we are reading from memory into a register.
+
+![alt text](../screenshots/instruction_8.png)
+
+- SP = 0x2001FFF0 — unchanged.
+- R2 = 0xA (10) — now contains the value read from RAM.
+- PC = 0x080001D8 — moved to the next instruction.
+
+The CPU calculated ```0x2001FFF0 + 12 = 0x2001FFFC ```  At 0x2001FFFC, memory contained 0A000000, representing the value 10. So now:
+
+- RAM still holds a = 10.
+- R2 also holds a copy of that value.
+
+The Next instruction is ```asm ldr r3, [sp, #8] ```. Lets find out which RAM address will the CPU read and What value will R3 contain afterward. 
+
+![alt text](../screenshots/instruction_9.png)
+
+Both registers now contain the values we need. The CPU calculated ```0x2001FFF0 + 8 = 0x2001FFF8 ```. At that RAM address, it found 0x14 (20).
+
+Now we have,
+|Register	|Value	|Meaning|
+|-----------|--------|------|
+|R2|	10	|Copy of a|
+|R3	|20	|Copy of b|
+|SP|	0x2001FFF0	|Unchanged|
+|PC	|0x080001DA	|Next instruction|
+
+**Next Instruction is add r3, r2 :**
+
+![alt text](../screenshots/instruction_10.png) 
+
+R3 now contains 30 (0x1E). The CPU performed, ``` R3 = R3 + R2 = 20 + 10 = 30```. 
+
+- R3 changed from 20 to 30.
+- R2 remains 10.
+- SP remains 0x2001FFF0.
+- PC moved to 0x080001DC.
+
+The addition happened inside the CPU, using its ALU. The CPU did not need to access RAM to perform the addition because both operands were already in registers.
+
+Now the final instruction for this calculation is ```asm str r3, [sp, #4] ```. We are storing the answer back into RAM.
+
+![alt text](../screenshots/instruction_11.png)
+
+The CPU calculated ``` 0x2001FFF0 + 4 = 0x2001FFF4 ``` R3 contained 30 (0x1E), so the CPU stored that value at 0x2001FFF4.Mmemory view confirms it,
+
+```text
+2001FFF0  1C000020  1E000000  14000000  0A000000
+```
+The second group, 1E000000, represents the four bytes holding 0x0000001E (30). Our calculation is complete.
+
+|Variable	|RAM address	|Value|
+|----------|--------------|-------|
+|a	|0x2001FFFC|	10|
+|b	|0x2001FFF8|	20|
+|result|	0x2001FFF4|	30|
+
+But why did the compiler loads a and b from RAM into R2 and R3 before adding them, instead of asking the ALU to add the values directly from RAM? 
+
+- RAM is where our variables are stored.
+- Registers are small, fast storage locations inside the CPU.
+- ALU is the part of the CPU that performs arithmetic.
+
+The ALU works with values supplied through CPU registers. It doesn't directly take two values from ordinary RAM and add them together in one instruction on Cortex-M4.
+
+So the CPU needs to do this,
+```text
+
+        RAM
+  a = 10  b = 20
+        |
+        |
+LDR — load values
+        |
+        |
+    CPU registers
+ R2 = 10  R3 = 20
+        |
+        |
+ADD — ALU performs addition
+        |
+        |
+       ALU
+  10 + 20 = 30
+        |
+        |
+        
+  STR — store result
+        RAM
+    result = 30
+    
+```
 ```asm
 080001c8:   sub     sp, #16
 27        	  volatile uint32_t a = 10;
