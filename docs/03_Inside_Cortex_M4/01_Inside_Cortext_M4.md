@@ -130,7 +130,7 @@ The ALU performs the arithmetic, CPU registers hold the operands and result, and
 080001e2:   movs    r0, r0
 ```
 
-![alt text](<../02_Cortex-M4 Core Registers/images/asm_instructions.png>)
+![alt text](../screenshots/asm_instructions.png)
 
 ### 1. Allocating stack memory:
 
@@ -221,7 +221,7 @@ So, here in my case code, GCC rounds the 12-byte local-variable area up to 16 by
 Let me trace that in debugger where the three variables occupy 12 bytes within those 16 bytes.
 In debugging session, inspecting PC , R3, SP by executing the next instruction which is ```asm movs r3, #10``` by pressing F5(step into) once.
 
-![alt text](<../02_Cortex-M4 Core Registers/images/instruction_2.png>)
+![alt text](../screenshots/instruction_2.png)
 
 |Register	: Current value |
 |---------------------------|
@@ -233,11 +233,11 @@ In debugging session, inspecting PC , R3, SP by executing the next instruction w
 - SP hasn't changed.
 - PC has advanced to the next instruction.0x080001CC
 
-![alt text](<../02_Cortex-M4 Core Registers/images/instruction_2.png>)
+![alt text](../screenshots/instruction_2.png)
 
 ### Store 10 in stack memory : 0x080001CC: str r3, [sp, #12]
 
-![alt text](<../02_Cortex-M4 Core Registers/images/instruction_3.png>)
+![alt text](../screenshots/instruction_3.png)
 
 - PC become 0x080001CE.
 - SP remain 0x2001FFF0.

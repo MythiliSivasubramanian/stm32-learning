@@ -36,14 +36,14 @@ I opened STM32CubeIDE and followed these steps:
 5. Generated the project.
 
 **Screenshot:** Project creation / MCU selection.
-![STM32CubeIDE MCU selection showing STM32F407VG](images/stm32cubeide-mcu-selection-stm32f407vg.png)
+![STM32CubeIDE MCU selection showing STM32F407VG](../screenshots/stm32cubeide-mcu-selection-stm32f407vg.png)
 
 ### 3. Checking the generated project
 
 I opened `Core/Src/main.c`.
 
 **Screenshot:** Generated `main.c` in the project.
-![Generated main.c file in STM32CubeIDE](images/generated-main-c-infinite-loop.png)
+![Generated main.c file in STM32CubeIDE](../screenshots/generated-main-c-infinite-loop.png)
 
 The generated main function contained:
 
@@ -158,7 +158,7 @@ The stack is used for temporary data such as saved registers, function call data
 
 **Screenshot:** Registers view showing SP.
 
-![STM32CubeIDE Registers view showing SP (R13) as 0x2001FFFC](images/debugger-registers-view-sp-r13.png)
+![STM32CubeIDE Registers view showing SP (R13) as 0x2001FFFC](../screenshots/debugger-registers-view-sp-r13.png)
 
 ### 6. Technical words I learned today
 
@@ -215,7 +215,7 @@ _estack = 0x20000000 + 0x20000 = 0x20020000
 
 In the startup assembly file (startup_stm32f407vgtx.s), attached image below, the first word `.word _estack` contains the initial stack pointer value. The second `word Reset_Handler`  contains the Reset Handler address. The Cortex-M4 hardware loads the initial MSP from that first vector-table entry during reset.
 
-![alt text](images/_estack_in_startup_file.png)
+![alt text](../screenshots/_estack_in_startup_file.png)
 
 **But why does the debugger shows 0x2001FFFC instead of 0x20020000?**
 
@@ -278,7 +278,7 @@ My goal is to understand whether the instructions are generated because of compi
 3. Expand C/C++ Build and select Settings.
 5. Open MCU GCC Compiler -> Optimization.
 
-![alt text](images/MPU_GCC_Compiler_optimazation.png)
+![alt text](../screenshots/MPU_GCC_Compiler_optimazation.png)
 
 Project is compiling with -O0 which means **no compiler optimisation**. GCC tries to preserve a straightforward relationship between my C source and the generated instructions which is useful for debugging.
 
@@ -287,7 +287,7 @@ TM32F407_BareMetal_Learning -> Project Properties -> C/C++ Build -> Settings.
 1. Select MCU GCC Compiler -> Miscellaneous.
 2. Look for the compiler flags / additional options.
 
-![alt text](images/MCU_GCC_Compiler_flags.png)
+![alt text](../screenshots/MCU_GCC_Compiler_flags.png)
 
 Nothing is listed under other flags and nothing is listed under additional object files. It means no additional compiler flags have been explicitly entered in that section. We haven't found the reason yet as why the 4 bytes is been rerserved in stack. 
 
@@ -299,7 +299,7 @@ Force a recompilation
 3. Select Project -> Build Project.
 4. Open the Console view at the bottom of CubeIDE.
 
-![alt text](images/build_results.png)
+![alt text](../screenshots/build_results.png)
 
 Now we have the actual GCC command. We can investigate this properly. Let's examine the important parts, what the compiler command tells.
 ```bash
@@ -340,14 +340,14 @@ And will compare the generated assembly.
 Project Properties -> C/C++ Build -> Settings -> MCU GCC Compiler -> Miscellaneous 
 In the Additional flags field, enter `-fomit-frame-pointer` and Click Apply and Close.
 
-![alt text](images/MCU_GCC_Compiler_additional_flags.png)
+![alt text](../screenshots/MCU_GCC_Compiler_additional_flags.png)
 
 Build the project
 1. Select Project -> Clean.(Cleaning ensures that main.c is recompiled with the new option)
 2. Select Project -> Build Project.
 3. Inspect the generated assembly by opening the .list file after the successful build. The instructions under main()
 
-![alt text](images/instructions_main().png)
+![alt text](../screenshots/main-disassembly-frame-pointer-omitted.png)
 
 The experiment worked. Now I have the answer to my original question **why does the debugger shows 0x2001FFFC instead of 0x20020000?**
 
@@ -384,7 +384,7 @@ The important distinction: PUSH {R7} was not required by the functionality of ma
 Lets verify with the debugger :
 Start debugging the newly built program and stop at the first instruction of main() to look at the SP register value.
 
-![alt text](images/Sp_pc_values.png)
+![alt text](../screenshots/Sp_pc_values.png)
 
 At the first instruction of main() ``` SP = 0x20020000 ```.  SP remained at its initial value 0x20020000 and not 0x2001FFFC. 
 
@@ -406,7 +406,7 @@ At the breakpoint inside main(), will investigate whether the debugger's SP is s
 3. Open Window -> Show View -> Other -> Debug -> Registers. Expand the Special Registers section (if available).
 4. Find the CONTROL register.
 
-![alt text](images/MSP_PSP_Control.png)
+![alt text](../screenshots/MSP_PSP_Control.png)
 
 **Debugger observations:**
 Register    :   Value

@@ -124,7 +124,7 @@ Let's inspect this operation and the actual CPU register values in the STM32 deb
 ```
 
 
-![alt text](<../02_Cortex-M4 Core Registers/images/asm_instructions.png>)
+![alt text](../screenshots/asm_instructions.png)
 
 
 **1. Allocating stack memory:**
@@ -193,11 +193,11 @@ Let's verify it in the debugger:
 -   4.  Execute one instruction using Step Into (F5).
 -   5.  Check SP again.
 
-![alt text](<../02_Cortex-M4 Core Registers/images/Initial_SP_Value.png>)
+![alt text](../screenshots/Initial_SP_Value.png)
 
 **SP value after executing the next instruction:**
 
-![alt text](<../02_Cortex-M4 Core Registers/images/new_SP_value.png>)
+![alt text](../screenshots/new_SP_value.png)
 
 **Observation:**
 
@@ -209,7 +209,7 @@ The stack is in RAM, and SP holds the address of the current top of the stack. T
 
 After executing ```asm movs r3, #10```, R3 contains 10. This instruction loads an immediate value into the register; it does not access the stack in RAM. SP remains 0x2001FFF0. The screenshot shows the debugger stopped at the following instruction, `movs r3, #20`.
  
-![alt text](<../02_Cortex-M4 Core Registers/images/asm_instrcutions_02.png>)
+![alt text](../screenshots/instruction_2.png)
 
 ## Storing the values in RAM
 
