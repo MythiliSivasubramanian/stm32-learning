@@ -265,6 +265,56 @@ So we have confirmed:
 - SP did not change.
 - PC advanced to the next instruction.
 
+### Execution record so far:
+
+|Instruction	|SP	|R3	|RAM|
+|---------------|---|---|---|
+|Before allocation|	20020000|	—	|—|
+|sub sp, #16|	2001FFF0|	—	|—|
+|movs r3, #10	|2001FFF0	|10	|—
+|str r3, [sp,#12]	|2001FFF0	|10	|2001FFFC = 10|
+
+### Initialize variable b : 0x080001CE: movs r3, #20
+
+0x14 in hexadecimal is 20 in decimal. R3 now contains 20 (0x14), and SP is unchanged.
+```text
+PC = 0x080001D0
+R3 = 0x00000014
+SP = 0x2001FFF0
+```
+![alt text](../screenshots/instruction_4.png)
+
+### Store variable b in RAM
+Current instruction: ```asm 0x080001D0: str r3, [sp, #8]``` This instruction stores 20 in RAM at 0x2001FFF8. In debugger, lets check PC , SP, R3 and Memory at 0x2001FFF8. Previous value at 0x2001FFFC should still be 0A 00 00 00.
+
+![alt text](../screenshots/instruction_5.png)
+
+Both variables are now stored in RAM
+
+Let's decode  Memory view:
+```text
+Address     0 - 3     4 - 7     8 - B     C - F
+2001FFF0    1C000020  00000000  14000000  0A000000
+```
+
+|Variable|	RAM address	|Stored value|
+|--------|--------------|------------|
+|a	|0x2001FFFC	|10 (0A)|
+|b	|0x2001FFF8	|20 (14)|
+
+Notice that storing b did not overwrite a. They occupy different 4-byte locations.
+
+### Initialize result to zero (0x080001D2: movs r3, #0)
+
+Ready to press F5 (Step into) and check PC, SP and R3.
+
+![alt text](../screenshots/instruction_6.png)
+
+- R3 = 0 — the value zero is now in the register.
+- SP = 0x2001FFF0 — stack pointer hasn't changed.
+- PC = 0x080001D4 — points to the next instruction.
+
+
 ```asm
 080001c8:   sub     sp, #16
 27        	  volatile uint32_t a = 10;
