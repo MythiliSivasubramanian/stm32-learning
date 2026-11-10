@@ -421,3 +421,14 @@ This selection is made using SYSCFG_EXTICR2.
 
 - Same pin number + different ports -> same EXTI line -> cannot be mapped simultaneously.
 - Different pin numbers -> different EXTI lines -> can work simultaneously.
+
+A button is connected to PA5. Its normal state is HIGH. When pressed, the signal changes from HIGH to LOW. Then its falling edge.
+HIGH -> LOW = Falling edge and if its from LOW -> HIGH then its Rising edge.
+
+On STM32F407, the EXTI peripheral has separate registers to configure these:
+- EXTI_RTSR – Rising Trigger Selection Register
+- EXTI_FTSR – Falling Trigger Selection Register
+
+If we want an interrupt when PA5 changes from HIGH to LOW, then we should configure EXTI_FTSR = Falling Trigger Selection Register. It configures which EXTI lines generate an interrupt on a HIGH -> LOW transition.
+
+If we want PA5 to generate an interrupt on a falling edge, which bit in EXTI_FTSR must we enable?
