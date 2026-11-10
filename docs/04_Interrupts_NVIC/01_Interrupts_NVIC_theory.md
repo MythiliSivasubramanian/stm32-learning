@@ -328,3 +328,96 @@ For interrupt learning, one register group is particularly important,
 |SYSCFG_EXTICR4 |Selects GPIO sources for EXTI12–EXTI15 |
 
 **Example:** If button is connected to PC5 the we configure SYSCFG_EXTICR2 register Because EXTI5 belongs to the EXTI4–EXTI7 group.
+
+10. Nov . 2026
+
+## SYSCFG :
+SYSCFG is a complete hardware peripheral and it contains multiple registers. SYSCFG_EXTICR1, SYSCFG_EXTICR2, SYSCFG_EXTICR3, SYSCFG_EXTICR4 are the registers inside that peripheral. 
+
+A peripheral can contain multiple registers. This is exactly like GPIOA containing MODER, OTYPER, IDR, ODR and other registers.
+But why are there four EXTICR registers? We have 16 external interrupt lines associated with GPIO pins, EXTI0 through EXTI15. Rather than putting all 16 line configurations into one register, STM32 groups them into four registers.
+
+We have 16 GPIO-related EXTI lines: EXTI0, EXTI1, EXTI2, ... EXTI15. We have four registers, each responsible for four EXTI lines.
+
+
+|Register 1 — SYSCFG_EXTICR1| Register 2 — SYSCFG_EXTICR2| Register 3 — SYSCFG_EXTICR3 | Register 4 — SYSCFG_EXTICR4   |
+|---------------------------|----------------------------|-----------------------------|-------------------------------|
+|EXTI0, EXTI1, EXTI2, EXTI3 | EXTI4, EXTI5, EXTI6, EXTI7 |EXTI8, EXTI9, EXTI10, EXTI11 |EXTI12, EXTI13, EXTI14, EXTI15 |
+
+**Simpflied Table:**
+
+|Register	| Controls |
+|-----------|-----------|
+|SYSCFG_EXTICR1	| EXTI0–EXTI3 |
+|SYSCFG_EXTICR2	| EXTI4–EXTI7 |
+|SYSCFG_EXTICR3	| EXTI8–EXTI11 |
+|SYSCFG_EXTICR4	| EXTI12–EXTI15|
+
+***Example:***
+1. To configure a GPIO pin connected to EXTI6,  we should use the register SYSCFG_EXTICR2.
+2. To configure a GPIO pin connected to EXTI12, we should use the register SYSCFG_EXTICR4.
+
+Each register is 32 bits wide and lets see what is inside each 32-bit register and how its four fields select GPIO ports.
+Let's take just one register: SYSCFG_EXTICR2. It is clear that this register SYSCFG_EXTICR2 is 32 bits wide and controls 4 EXTI lines (EXTI4, EXTI5, EXTI6 and EXTI7).
+
+The 32-bit register is divided into four smaller fields. Each field is 4 bits wide.
+
+![alt text](../screenshots/(SYSCFG_EXTICR2).png) These are the four active fields in the lower 16 bits. The upper 16 bits are reserved.
+
+For example, SYSCFG_EXTICR2:
+|Bits	| Selects source for |
+|------|-------------------|
+|[3:0] |	EXTI4 |
+|[7:4] | EXTI5 |
+|[11:8] | EXTI6 |
+|[15:12] | EXTI7 |
+|[31:16] |	Reserved |
+      
+Each 4-bit field selects which GPIO port supplies the signal to its corresponding EXTI line. For example, the EXTI5 field selects whether the source is PA5, PB5, PC5, and so on. A 4-bit field can represent 16 different combinations, from 0000 to 1111
+
+**Examples:**
+1. If we want to connect PB5 to EXTI5, then we would need to configure SYSCFG_EXTICR2 register inside SYSCFG pheripherial. SYSCFG_EXTICR2 controls EXTI4, EXTI5, EXTI6 and EXTI7. For PB5 -> EXTI5, we configure the EXTI5 field inside SYSCFG_EXTICR2 and select Port B.
+
+2. If we want to connect PC9 to EXTI9, then we would use Register SYSCFG_EXTICR3 in SYSCFG pheripheral. Because it controls EXTI8–EXTI11, including EXTI9.
+
+3. If we want to configure PB5 -> EXTI5 then we modify Bits [7:4] inside SYSCFG_EXTICR2 and select Port B. Because:
+- EXTI4 → bits [3:0]
+- EXTI5 → bits [7:4]
+- EXTI6 → bits [11:8]
+- EXTI7 → bits [15:12]
+
+But here's an important detail: although 16 combinations are possible, we only need 9 of them for our GPIO ports (A to I).
+
+|Binary |	GPIO port |
+|-------|-------------|
+|0000	|GPIOA |
+|0001	|GPIOB |
+|0010	|GPIOC |
+|0011	|GPIOD |
+|0100	|GPIOE |
+|0101	|GPIOF |
+|0110	|GPIOG |
+|0111	|GPIOH |
+|1000	|GPIOI |
+
+The remaining combinations are not used for GPIO port selection.
+
+**Example:** 
+1.    To connect PB5 to EXTI5, we should put these 4 bit value 0001 into the EXTI5 field. Because,
+- Port = GPIO Port B
+- Port B's 4-bit value = 0001
+
+2.    To connect PC5 to EXTI5, we should put these 4 bit value 0010 into the EXTI5 field. Because,
+- Port = GPIO Port C
+- Port C's 4-bit value = 0010
+
+3. We would not be able to connect both PA5 and PB5 to EXTI5 at the same time, since each EXTI line (EXTI0–EXTI15) can be mapped to only one GPIO port at a time. For example, EXTI5 can receive an interrupt from,
+- PA5, or
+- PB5, or
+- PC5, or another Port's pin 5.
+- But not from multiple ports simultaneously.
+
+This selection is made using SYSCFG_EXTICR2. 
+
+- Same pin number + different ports -> same EXTI line -> cannot be mapped simultaneously.
+- Different pin numbers -> different EXTI lines -> can work simultaneously.
