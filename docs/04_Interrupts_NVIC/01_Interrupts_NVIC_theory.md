@@ -448,6 +448,19 @@ After EXTI records the event in EXTI_PR,  EXTI_IMR Interrupt Mask register contr
 - EXTI_FTSR – Configures which EXTI lines should detect a falling edge (HIGH → LOW).
 - EXTI_PR – Records that an event has occurred by setting the corresponding pending bit to 1.
 
+### Clearing the pending flag (EXTI_PR):
+
+When an event occurs, the corresponding bit in EXTI_PR becomes 1. To clear the pending flag, write 1 to the corresponding bit.
+This is called **Write One to Clear (W1C).** For EXTI5, write 1 to bit 5.
+
+**Example:**
+```c
+EXTI->PR = (1U << 5);
+```
+Note: Do not use EXTI->PR &= ~(1U << 5); to clear it.
+
+
+
 ### EXTI_IMR : 
 EXTI_IMR stands for Interrupt Mask Register.
 
@@ -460,3 +473,39 @@ For EXTI5:
 |EXTI_FTSR	| Select falling-edge detection |
 |EXTI_PR	| Record the pending event |
 |EXTI_IMR	| Allow or block the interrupt request |
+
+Example:
+Imagine PA5 is configured for falling-edge detection. The button is pressed, and bit 5 of EXTI_PR becomes 1. But bit 5 of EXTI_IMR is 0. 
+
+The event is recorded in EXTI_PR, but because bit 5 of EXTI_IMR is 0, the interrupt request is blocked from reaching the NVIC.
+
+Important distinction:
+- EXTI_PR bit 5 = 1: The event happened.
+- EXTI_IMR bit 5 = 0: The interrupt request is masked.
+- EXTI_IMR bit 5 = 1: The interrupt request is not masked. (can reach NVIC)
+The event can be pending even though the interrupt is masked.
+
+Example:
+If we want EXTI5 to send its interrupt request to the NVIC, Bit 5 of EXTI_IMR must be 1 to unmask EXTI5 and allow its interrupt request to reach the NVIC.
+
+So far, EXTI5 configuration is:
+1. SYSCFG_EXTICR2 → Select PA5 as the source for EXTI5.
+2. EXTI_FTSR → Enable falling-edge detection.
+3. EXTI_PR → Records that the event occurred.
+4. EXTI_IMR → Unmask EXTI5 so its interrupt request can reach NVIC.
+
+Suppose EXTI5 is unmasked and a falling edge occurs. The request reaches the NVIC. Does that automatically mean the CPU will execute the EXTI5 interrupt handler? The NVIC must also have EXTI5 enabled.
+
+For the CPU to execute the EXTI5 handler:
+1. EXTI5 must be enabled in the NVIC. The shared EXTI9_5 interrupt must be enabled in the NVIC, because EXTI5 belongs to that interrupt group.
+2. Its priority must allow it to execute (it cannot be blocked by a higher-priority active interrupt or masking).
+3. The CPU must not have interrupts globally masked.
+
+But which NVIC register enables an individual interrupt such as EXTI5?  NVIC_ISER — Interrupt Set-Enable Register.
+
+### NVIC_ISER — Interrupt Set-Enable Register.
+NVIC_ISER enables individual interrupts in the Nested Vectored Interrupt Controller.
+
+For EXTI5, we enable the shared EXTI9_5 interrupt in NVIC.
+ - EXTI5 does not have its own separate NVIC interrupt.
+- EXTI lines 5–9 share the EXTI9_5 interrupt. Its interrupt handler is named EXTI9_5_IRQHandler(). Its IRQ number is EXTI9_5_IRQn.
