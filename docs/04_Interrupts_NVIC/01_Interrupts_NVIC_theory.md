@@ -220,7 +220,7 @@ Each bit controls one external interrupt.
 Suppose EXTI0 has IRQ number 6 on STM32F407. It belongs to NVIC_ISER0. It uses bit 6. So enabling EXTI0 means setting bit 6 in NVIC_ISER0. Conceptually, NVIC_ISER0 |= (1U << 6); This is only a conceptual register operation for now; will verify the actual register address and behaviour before writing hardware code.
 
 ### What is EXTI line 0 :
-Earlier example where we want the STM32F407 to detect when someone presses a button. Imagine we connect a button to PA0 (GPIO Port A, Pin 0). The STM32 MCU has a hardware peripheral called EXTI — External Interrupt/Event Controller. Its job is to detect selected changes on GPIO pins and generate interrupt requests.
+Earlier example where we want the STM32F407 to detect when someone presses a button. Imagine we connect a button to PA0 (GPIO Port A, Pin 0). The STM32 MCU has a hardware peripheral called EXTI — External Interrupt/Event Controller. Its one of the job is to detect selected changes on GPIO pins and generate interrupt requests.
 
 - PA0 = physical GPIO pin 0 on Port A.
 - EXTI0 = interrupt line number 0 inside the EXTI peripheral.
@@ -431,4 +431,32 @@ On STM32F407, the EXTI peripheral has separate registers to configure these:
 
 If we want an interrupt when PA5 changes from HIGH to LOW, then we should configure EXTI_FTSR = Falling Trigger Selection Register. It configures which EXTI lines generate an interrupt on a HIGH -> LOW transition.
 
-If we want PA5 to generate an interrupt on a falling edge, which bit in EXTI_FTSR must we enable?
+If we want PA5 to generate an interrupt on a falling edge, which bit in EXTI_FTSR must we enable? We enable bit 5 of EXTI_FTSR because PA5 is mapped to EXTI5. That means EXTI5 will detect a falling edge (HIGH -> LOW).
+
+
+11. Nov 2026.
+## External Interrupt Pending Register:
+One of the registers of External Interrupt/Event Controller EXTI pheripheral on STM32 MCU is EXTI_PR (External Interrupt Pending Register)
+
+When EXTI detects the falling edge on PA5 (mapped to EXTI5),
+-     Bit 5 of EXTI_PR becomes 1.
+-     This records that an EXTI5 event has occurred. It means an event happened on EXTI5!]
+
+Example>
+After EXTI records the event in EXTI_PR,  EXTI_IMR Interrupt Mask register controls whether the interrupt request is allowed to reach the NVIC.
+
+- EXTI_FTSR – Configures which EXTI lines should detect a falling edge (HIGH → LOW).
+- EXTI_PR – Records that an event has occurred by setting the corresponding pending bit to 1.
+
+### EXTI_IMR : 
+EXTI_IMR stands for Interrupt Mask Register.
+
+For EXTI5:
+- Bit 5 = 1 → Interrupt request is unmasked (allowed through to NVIC).
+- Bit 5 = 0 → Interrupt request is masked (blocked from reaching NVIC).
+
+|Register	| Responsibility |
+|-----------|----------------|
+|EXTI_FTSR	| Select falling-edge detection |
+|EXTI_PR	| Record the pending event |
+|EXTI_IMR	| Allow or block the interrupt request |
