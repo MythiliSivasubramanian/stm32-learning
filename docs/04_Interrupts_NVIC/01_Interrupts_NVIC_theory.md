@@ -509,3 +509,51 @@ NVIC_ISER enables individual interrupts in the Nested Vectored Interrupt Control
 For EXTI5, we enable the shared EXTI9_5 interrupt in NVIC.
  - EXTI5 does not have its own separate NVIC interrupt.
 - EXTI lines 5–9 share the EXTI9_5 interrupt. Its interrupt handler is named EXTI9_5_IRQHandler(). Its IRQ number is EXTI9_5_IRQn.
+
+### NVIC_IPR — Priority Register:
+
+NVIC_IPR stands for Interrupt Priority Register.
+
+It configures the priority of individual interrupts.
+
+Important rule:
+- Lower numerical value = higher priority.
+- Priority 3 is higher than priority 6.
+- A higher-priority interrupt can preempt a lower-priority active interrupt, subject to the priority grouping and masking configuration.
+
+### Complete EXTI5 signal path:
+```text
+            PA5 GPIO pin
+      Button changes HIGH -> LOW
+                │
+                │
+                v
+         SYSCFG_EXTICR2
+        Maps PA5 to EXTI5
+                │
+                │
+                v
+            EXTI_FTSR
+     Detects falling edge
+                │
+                │
+                v
+            EXTI_PR
+       Sets pending bit 5
+                │
+                │
+                v
+            EXTI_IMR
+Unmasks EXTI5 interrupt request
+                │
+                │
+                v
+              NVIC
+EXTI9_5 enabled using NVIC_ISER; priority configured using NVIC_IPR
+                │
+                │
+                v
+         Cortex-M4 CPU
+  Executes EXTI9_5_IRQHandler()
+  
+```
