@@ -557,3 +557,5 @@ EXTI9_5 enabled using NVIC_ISER; priority configured using NVIC_IPR
   Executes EXTI9_5_IRQHandler()
   
 ```
+
+Let's connect the above to our STM32F407. Let's move toward practical configuration. [02_01_Interrupts_NVIC_practicals.md](02_01_Interrupts_NVIC_practicals.md)
