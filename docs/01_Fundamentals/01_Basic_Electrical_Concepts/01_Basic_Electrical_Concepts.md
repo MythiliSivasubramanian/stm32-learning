@@ -3,7 +3,7 @@
 ### Understanding electricity:
 Imagine a small battery and a light bulb.
 
-![alt text](../../screenshots/ele.png)
+![alt text](../../screenshots/ele.jpg)
 
 When the battery is connected to the bulb using wires, then the bulb lights up. Because the battery provides the electrical energy that makes electric current flow through the circuit.
 
@@ -17,7 +17,7 @@ There are three basic concepts to understand:
 ### Voltage (V):
 Imagine a water tank:
 
-![alt text](../../screenshots/voltage.png)
+![alt text](../../screenshots/2.jpg)
 
 Think of voltage as ***electrical pressure*** that drives current through a circuit. **Voltage tells us how much electrical potential difference exists between two points.**
 
@@ -45,7 +45,7 @@ Imagine a water pipe that becomes narrower. It restricts the water flow. Similar
 - Resistance is measured in Ohms (Ω).
 - The symbol used for resistance is R.
 
-![alt text](../../screenshots/1.png)
+![alt text](../../screenshots/3.jpg)
 
 ### 4. VDD and GND:
 Names frequently seen in electronic circuit diagrams.
