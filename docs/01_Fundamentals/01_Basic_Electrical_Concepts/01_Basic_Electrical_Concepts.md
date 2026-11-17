@@ -47,6 +47,14 @@ Imagine a water pipe that becomes narrower. It restricts the water flow. Similar
 
 ![alt text](../../screenshots/3.jpg)
 
+**Example 1:**
+
+Imagine two identical circuits, both supplied with 3.3 V.
+- Circuit 1 has a resistance of 100 Ω.
+- Circuit 2 has a resistance of 1,000 Ω.
+
+Which circuit allows more current to flow? Circuit 1 (100 Ω), because lower resistance allows more current to flow, when the voltage stays the same.
+
 ### 4. VDD and GND:
 Names frequently seen in electronic circuit diagrams.
 
@@ -60,3 +68,24 @@ For STM32 board:
 - GND is 0 V.
 
 The voltage difference between them is 3.3 V.
+
+### 5. Ohm's Law:
+```text
+        V 
+I =   ----
+        R
+```
+
+Where:
+- **I** = Current (Ampere)
+- **V** = Voltage (Volt)
+- **R** = Resistance (Ohm)
+
+Let's calculate from Example 1:
+
+|Circuit	| Voltage	| Resistance |	Current |
+|-----------|-----------|------------|----------|
+|1	        | 3.3 V	    | 100 Ω	     | 33 mA    |
+|2	        | 3.3 V	    | 1,000 Ω	 | 3.3 mA   |
+
+***When resistance increases 10 times, current decreases 10 times (with voltage unchanged).**
