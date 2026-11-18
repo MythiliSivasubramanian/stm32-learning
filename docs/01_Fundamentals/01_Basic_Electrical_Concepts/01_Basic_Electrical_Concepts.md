@@ -176,3 +176,25 @@ For normal positive supply measurements:
 - Red probe -> positive supply.
 
 **If the probes are reversed, the multimeter displays a negative voltage**, for example, -4.98 V or -2.98 V.
+The voltage difference between them is 3.3 V.
+
+### 5. Ohm's Law:
+```text
+        V 
+I =   ----
+        R
+```
+
+Where:
+- **I** = Current (Ampere)
+- **V** = Voltage (Volt)
+- **R** = Resistance (Ohm)
+
+Let's calculate from Example 1:
+
+|Circuit	| Voltage	| Resistance |	Current |
+|-----------|-----------|------------|----------|
+|1	        | 3.3 V	    | 100 Ω	     | 33 mA    |
+|2	        | 3.3 V	    | 1,000 Ω	 | 3.3 mA   |
+
+***When resistance increases 10 times, current decreases 10 times (with voltage unchanged).**
