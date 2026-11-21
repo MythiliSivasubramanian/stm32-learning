@@ -28,3 +28,4 @@ I want to understand what the code is doing and how it interacts with the hardwa
 This section tracks the experiments I complete as I progress, including the code, debugger observations, and what I learn from each experiment.
 
 More experiments and projects will be added as I gain practical experience.
+
