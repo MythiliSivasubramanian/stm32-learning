@@ -25,8 +25,21 @@ Before using interrupts, will make the onboard LED respond to the USER button us
 |LED5 Red	 | PD14 |
 |LED6 Blue	| PD15 |
 
-Starting with 1 LED, which is Green LED4 on PD12. Before configuring it, the clock for Port D needs to be enabled. The STM32F407 has a clock-control peripheral called RCC (Reset and Clock Control). GPIO peripherals need their clocks enabled before we can use them. The register used is **RCC_AHB1ENR** (Reset and Clock Control, AHB1 bus, Enable Register).
-**RCC_AHB1ENR = Reset and Clock Control – AHB1 Peripheral Clock Enable Register.**
+### Project 1: 
+#### GPIO Polling:
+
+The first experiment will use:
+-   PA0 as a GPIO input to read the USER button.
+-   PD12 as a GPIO output to control the green LED.
+
+Polling will be implemented before introducing interrupts.
+
+Starting with 1 LED, which is Green LED4 on PD12. Before configuring it, the clock for Port D needs to be enabled. 
+
+### RCC Register Identification:
+
+The STM32F407 has a clock-control peripheral called RCC (Reset and Clock Control). GPIO peripherals need their clocks enabled before we can use them. The register used is **RCC_AHB1ENR** (Reset and Clock Control, AHB1 bus, Enable Register).
+**RCC_AHB1ENR = Reset and Clock Control – AHB1 Peripheral Clock Enable Register.** 
 
 In simple terms:
 - RCC is the peripheral that controls clocks and resets.
@@ -35,7 +48,7 @@ In simple terms:
 - R means register.
 
 Why does AHB1 matter?
-GPIOA, GPIOB, GPIOC, GPIOD, and several other peripherals are connected to the AHB1 bus. For our practical, we need to enable the GPIOD clock by setting bit 3.
+GPIOA, GPIOB, GPIOC, GPIOD, and several other peripherals are connected to the AHB1 bus. For our practical, we need to enable the GPIOD clock by setting bit 3. Bit 3 of RCC_AHB1ENR controls the GPIOD peripheral clock.
 
 ## Enable GPIOD clock
-Enable the GPIOD clock in C. In main.c,  eventually written as : `RCC->AHB1ENR |= (1U << 3);`.
+Enable the GPIOD peripheral clock in C by understaning bit shifting in c using register-level programming.. In main.c,  eventually written as : `RCC->AHB1ENR |= (1U << 3);`.
