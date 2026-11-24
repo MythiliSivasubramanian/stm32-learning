@@ -63,7 +63,7 @@ GPIOA, GPIOB, GPIOC, GPIOD and several other peripherals are connected to the AH
 
 ![alt text](../screenshots/GPIOA.png)
 
-Therefore, we need to set bit 0 without changing the other register bits. ```c RCC->AHB1ENR |= (1U << 0);``` Detailed explanation of Bitwise [Mastering bitwise](../../../embedded_systems_foundations/02_C_for_Embedded/03_mastering_bitwise.md)
+Therefore, we need to set bit 0 without changing the other register bits. ```c RCC->AHB1ENR |= (1U << 0);``` Detailed explanation of bitwise operations: [Mastering bitwise](https://github.com/MythiliSivasubramanian/embedded_systems_foundations/blob/sub/02_C_for_Embedded/03_mastering_bitwise.md).
 
 #### 1.2 Configure PA0 as input
 
@@ -94,8 +94,8 @@ The Onboard Green LED is connected to PD12.
 
 #### 2.1 Enable the GPIOD peripheral clock
 GPIOD is also connected to the AHB1 bus. Enable the GPIOD peripheral clock of GPIOD by using bit shifting in c.  We can enable the GPIO Port D by updating the respective bit (bit 3) of RCC_AHB1EN, since GPIOD is also connected to the AHB1 bus. Bit 3 of RCC_AHB1ENR controls the GPIOD peripheral clock. I.e Basically we want the bit 3 of this register RCC_AHB1EN to be set to 1, without changing the other bits of the register. In main.c,  eventually written as : `RCC->AHB1ENR |= (1U << 3);`. 
-Detailed explanation in file [Mastering bitwise](../../../embedded_systems_foundations/02_C_for_Embedded/03_mastering_bitwise.md)
- 
+Detailed explanation in [Mastering bitwise](https://github.com/MythiliSivasubramanian/embedded_systems_foundations/blob/sub/02_C_for_Embedded/03_mastering_bitwise.md).
+
 Understanding the bitwise operation:
 
  Let's break down the operation: RCC->AHB1ENR |= (1U << 3);
