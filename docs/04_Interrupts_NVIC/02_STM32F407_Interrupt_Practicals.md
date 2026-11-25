@@ -180,3 +180,144 @@ GPIOD->ODR &= ~(1U << 12);   // Set PD12 LOW
 -   IDR (Input Data Register) is used to read the actual input level of a GPIO pin.
 -   GPIOA_IDR (Input Data Register) to read the USER button(in polling)
 
+To turn ON the Green LED, PD12 needs to be HIGH (1). To Set the Port D Pin 12 as 1 in GPIOD_ODR, set the respective bit (bit 12) in GPIOD_ODR as 1. 
+
+```c GPIOD -> ODR |= (1U << 12)````
+This instruction,
+1. Creates a bit mask with bit 12 set to 1.
+2. Uses bitwise OR to set bit 12 in ODR.
+3. Preserves all other bits in the register.
+
+***Result:*** PD12 is set to high (1), which turn on the onboard green LED.  
+
+To turn OFF the Green LED, PD12 needs to be low (0). To Set the Port D Pin 12 as 0 in GPIOD_ODR, set the respective bit (bit 12) in GPIOD_ODR as 0 by using bitwise operations
+
+```c GPIOD -> ODR &=  ~(1U << 12)``` This clears bit 12 while preserving all other bits in ODR. 
+
+***Result:*** PD12 is driven LOW, turning OFF the Green LED.
+
+After enabling Input pheripheral Clock (Port A) -> Set PA0 as Input in GOPIA_MODER -> Enable Output Pheripheral clock (Port D) -> set PD12 as Output in GPIOD_MODER -> Set and clear output values to turn ON and OFF of the output LED in GPIOD_ODR. 
+
+Now, the CPU needs to read the user button state. GPIOA_IDR (Input data Register) holds that information. 
+
+![alt text](../screenshots/GPIOA_IDR.png)
+
+For PA0:
+- Bit 0 = 1 -> input is HIGH. (Button is pressed)
+- Bit 0 = 0 -> input is LOW. (Button is not pressed)
+
+Need to read the current logic level for PA0 in GPIOA_IDR. But reading all 32 bits of GPIOA_IDR isnt required since only bit 0 is required, as the user Button B1 is connected to PA0. Suppose the register contains,
+
+```text
+GPIOA->IDR = 0000 0000 0000 0000 0000 0000 0000 0001
+```
+The LSB Bit 0 tells the electrical level at PA0, which is currently 1 (High), meaning that the button is pressed. So,
+
+- PA0 is connected to B1 USER button.
+- GPIOA_IDR reads the input pin.
+- Bit 0 = 1 means PA0 is HIGH.
+- On this board, B1 is active-high: pressing the button makes PA0 HIGH.
+When released, PA0 is LOW (0).
+
+If the User Button B1 (PA0) is 1(high/Button pressed), then the onboard LED PD12 needs to set high (1), which turns the LED ON.
+
+```c
+if(GPIOA -> IDR & (1U << 0))        // User button presssed / PA0 is 1(high) Only bit 0 (PA0) needs check
+{
+    GPIOD -> ODR |= (1U << 12)                               // turn LED ON (Set PD12 to 1(high)
+}
+```
+
+1. GPIOA -> IDR reads the input data register.
+2. (1U << 0) creates a mask that targets only bit 0.
+3. & checks whether that particular bit is set.
+4. If the result is non-zero, PA0 is HIGH (button pressed).
+5. We set bit 12 in GPIOD_ODR, driving PD12 HIGH and turning ON the Green LED.
+if condition treats any non-zero result as true.
+
+Suppose the button is pressed and the LED turns ON. Then when the button is released, the LED should turn OFF. ie PD12 should be set to 0. ie, if PA0 is 0, then PD12 should be also 0.
+
+When the instruction ```c GPIOD->ODR |= (1U << 12);```is executed, bit 12 is set to 1 which turns the LED turns ON. Now, when the button is released, PA0 becomes LOW. But the ODR register does not automatically know that the button was released. The output remains HIGH until program changes it. Therefore, it must explicitly clear bit 12 of Port D, ```c GPIOD -> ODR &=  ~(1U << 12)``` 
+
+-   GPIOA_IDR tells the CPU what the button's current input level is.
+-   GPIOD_ODR remembers the output level we have commanded.
+-   Changing the input does not automatically change the output.
+
+```c
+if(GPIOA -> IDR & (1U << 0))        // User button presssed / PA0 is 1(high) Only bit 0 (PA0) needs check
+{
+    GPIOD -> ODR |= (1U << 12);                               // turn LED ON (Set PD12 to 1(high)
+}
+else                     // Button not pressed / PA0 is 0(low)
+{
+    GPIOD -> ODR &= ~(1U << 12);            // Turn LED OFF (Clear PD12)
+}
+```
+
+The above if else runs only once, ie, the instruction check only once if the button is pressed or no. But the CPU needs to check continously to read if the user button is pressed or not and accordingly the respective sub instructions (turn LED ON and LED OFF) needs to be executed. We need to continuously monitor PA0. while(1) makes the CPU repeat the button-checking logic indefinitely.This technique is called as **Polling**. Hence while(1), a infinite loop is required to check continously. So,
+
+```c
+while(1)
+{
+    if(GPIOA -> IDR & (1U << 0))        // User button presssed / PA0 is 1(high) Only bit 0 (PA0) needs check
+        {
+            GPIOD -> ODR |= (1U << 12);                               // turn LED ON (Set PD12 to 1(high)
+        }
+    else                     // Button not pressed / PA0 is 0(low)
+        {
+        GPIOD -> ODR &= ~(1U << 12);            // Turn LED OFF (Clear PD12)
+        }
+}
+
+```
+
+#### GPIO Polling Sequence:
+```text
+1. Initialise GPIOA
+    Enable clock -> Configure PA0 as input
+
+2. Initialise GPIOD
+    Enable clock -> Configure PD12 as output
+
+3. Poll continuously
+    Read PA0 -> If HIGH, turn LED ON -> Otherwise, turn LED OFF
+
+4. Repeat
+    Keep checking the button inside an infinite loop.
+```
+
+### Program Structure: 
+```c
+#include <stdint.h>
+
+int main(void)
+{
+    // 1. Enable GPIOA clock 
+    RCC -> AHB1ENR |= (1U << 0);
+
+    // 2. Configure PA0 as input
+    GPIOA -> MODER &= ~(3U << 0);
+
+    // 3. Enable GPIOD clock
+    RCC -> AHB1ENR |= (1U << 3);
+
+    // 4. Configure PD12 as output
+    GPIOD -> MODER &= ~(3U << 24); // clear bits
+    GPIOD -> MODER |= (1U << 24); // Set bits
+
+    // 5. Continuously monitor the USER button Polling
+    while (1)
+    {
+        if (GPIOA -> IDR & (1U << 0))
+        {
+            // Button pressed: turn Green LED ON
+            GPIOD -> ODR |= (1U << 12);
+        }
+        else
+        {
+            // Button released: turn Green LED OFF
+            GPIOD -> DR &= ~(1U << 12);
+        }
+    }
+}
+```
