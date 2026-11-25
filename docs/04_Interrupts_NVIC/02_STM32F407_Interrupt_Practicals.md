@@ -59,9 +59,8 @@ The user Button B1 is connected to PA0. i.e, GPIO Port A, Pin 0 is connected to 
 
 GPIOA, GPIOB, GPIOC, GPIOD and several other peripherals are connected to the AHB1 bus. For GPIOA, bit 0 of RCC_AHB1ENR controls its peripheral clock.
 
-![alt text](../screenshots/GPIO_A.png)
-
-![alt text](../screenshots/GPIOA.png)
+![alt text](../screenshots/RCC_AHB1ENR.png)
+![alt text](../screenshots/RCC_AHB1ENR_PortA.png)
 
 Therefore, we need to set bit 0 without changing the other register bits. ```c RCC->AHB1ENR |= (1U << 0);``` Detailed explanation of bitwise operations: [Mastering bitwise](https://github.com/MythiliSivasubramanian/embedded_systems_foundations/blob/sub/02_C_for_Embedded/03_mastering_bitwise.md).
 
