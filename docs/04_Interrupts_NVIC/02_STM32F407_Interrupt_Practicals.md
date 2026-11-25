@@ -321,3 +321,6 @@ int main(void)
     }
 }
 ```
+Before testing the GPIO polling using the actual STM32F407VG, the system environment needs to be set up. Since the above program is in C, need to access the actual hardware registers of M4 Cortex.
+For example, statements like ```c RCC->AHB1ENR |= (1U << 0); GPIOA->MODER &= ~(3U << 0); ```etc . But where do RCC, GPIOA, AHB1ENR and MODER come from? The C compiler does not automatically know that these names represent hardware registers inside the STM32F407.  Hence Header files that describe the MCU's peripherals, their registers and their memory addresses are required.
+This is where CMSIS comes into the picture. CMSIS stands for Cortex Microcontroller Software Interface Standard. It is a standard developed by Arm for Cortex-M processor-based microcontrollers. Refer [01_Setting_Up _CMSIS_Core_headfiles.md](Projects_STM32/Interrupts_NVIC/Polling/STM32F407_GPIO_Polling/Src/main.c)
