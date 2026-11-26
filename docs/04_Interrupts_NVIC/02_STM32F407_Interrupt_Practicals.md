@@ -4,6 +4,10 @@ Recording actual register-level experiments, C code, debugger observations and s
 
 Before doing any practical experiments, to understand the basic terms of circuit diagrams, file [01_Basic_Electrical_Concepts](../01_Fundamentals/01_Basic_Electrical_Concepts/01_Basic_Electrical_Concepts.md) would be helpful.
 
+### Related STM32CubeIDE Project
+The actual STM32CubeIDE project, including the register-level GPIO polling implementation, is available here:
+[STM32F407 GPIO polling project](https://github.com/MythiliSivasubramanian/Projects_STM32/blob/main/Interrupts_NVIC/Polling/STM32F407_GPIO_Polling/Src/main.c)
+
 ### Goal:
 Create an external interrupt when the User Button B1 is pressed. When B1 is pressed, the onboard LED should light up.
 
@@ -119,8 +123,8 @@ Enabling the peripheral clock does not automatically make PD12 an output. Need t
 As discussued above "Understanding GPIO MODER", PD12 uses bits 24 and 25 of GPIOD_MODER.
 
 Therefore, GPIOD's MODER register has 32 bits: 16 * 2 = 32 bits. Each GPIO pin uses 2 bits in MODER. Since each pin uses two bits, so for PD12, 2 * 12 = 24. So bit 24 and bit 25 of GPIOD_MODER corresponds to PD12. Therefore:
-- Bit 24 = 0
-- Bit 25 = 1
+- Bit 24 = 1
+- Bit 25 = 0
 Together: 01 -> General-purpose output mode.
 
 Basically,
@@ -316,11 +320,118 @@ int main(void)
         else
         {
             // Button released: turn Green LED OFF
-            GPIOD -> DR &= ~(1U << 12);
+            GPIOD -> ODR &= ~(1U << 12);
         }
     }
 }
 ```
 Before testing the GPIO polling using the actual STM32F407VG, the system environment needs to be set up. Since the above program is in C, need to access the actual hardware registers of M4 Cortex.
 For example, statements like ```c RCC->AHB1ENR |= (1U << 0); GPIOA->MODER &= ~(3U << 0); ```etc . But where do RCC, GPIOA, AHB1ENR and MODER come from? The C compiler does not automatically know that these names represent hardware registers inside the STM32F407.  Hence Header files that describe the MCU's peripherals, their registers and their memory addresses are required.
-This is where CMSIS comes into the picture. CMSIS stands for Cortex Microcontroller Software Interface Standard. It is a standard developed by Arm for Cortex-M processor-based microcontrollers. Refer [01_Setting_Up _CMSIS_Core_headfiles.md](Projects_STM32/Interrupts_NVIC/Polling/STM32F407_GPIO_Polling/Src/main.c)
+This is where CMSIS comes into the picture. CMSIS stands for Cortex Microcontroller Software Interface Standard. It is a standard developed by Arm for Cortex-M processor-based microcontrollers. Refer [the CMSIS setup](../CMSIS/01_Setting_Up%20_CMSIS_Core_headfiles.md).
+
+### 3. Actual Hardware Experiment — GPIO Polling:
+
+#### 3.1 Objective
+The aim of this experiment was to verify GPIO input and output using the STM32F407G-DISC1 board, without using HAL or LL libraries.
+
+I used the onboard B1 User Button (PA0) as the input and the Green LED4 (PD12) as the output. When I pressed the button, the green LED turned ON. When I released it, the LED turned OFF.
+
+This experiment helped me verify that I could:
+-   Enable GPIO peripheral clocks using the RCC register.
+-   Configure PA0 as an input and PD12 as an output using the MODER register.
+-   Read the button state through the IDR register.
+-   Control the LED through the ODR register.
+-   Continuously check the input state using polling inside a while(1) loop.
+
+#### 3.2 Build result
+I built the project in STM32CubeIDE. Build result was successful with 0 errors and 1 Warning'(FPU initialization warning). Since this experiment uses only integer operations and does not use floating-point instructions, I left this warning for later investigation.
+
+**Screenshot — Build Console**
+![alt text](../screenshots/gpio-polling-build-success.png)
+
+#### 3.3 Debugger verification
+
+After flashing the program, I used the STM32CubeIDE debugger to verify the GPIO configuration by stepping through the code and inspecting the peripheral registers.
+
+I verified the following:
+
+| Register | What I checked | Observed result |
+|---|---|---|
+| `RCC -> AHB1ENR` | GPIOA clock enabled | Bit 0 = 1 |
+| `GPIOA -> MODER` | PA0 configured as input | Bits 1:0 = `00` |
+| `RCC -> AHB1ENR` | GPIOD clock enabled | Bit 3 = 1 |
+| `GPIOD -> MODER` | PD12 configured as output | Bits 25:24 = `01` |
+
+Attached screenshots below:
+
+For PD12, the debugger showed, Register value (hex): `0x01000000`
+
+#### Understanding the value 0x01000000
+The debugger displayed the value of GPIOD -> MODER as 0x01000000. I converted this hexadecimal value into binary, 0x01000000 = 0000 0001 0000 0000 0000 0000 0000 0000
+
+Each GPIO pin uses 2 bits in the MODER register to select its mode. For PD12, the two relevant bits are bit 25 and bit 24. To understand the configuration, I checked these two bits:
+
+- Bit 24 = 1
+- Bit 25 = 0
+Therefore, bits 25:24 = 01. According to the STM32F407 MODER configuration, 01 is for General purpose output. So, 01 means that PD12 is configured as a general-purpose output.
+
+This confirmed that PD12 was configured in output mode.
+
+**Screenshot — Debugger Register Values**
+![alt text](../screenshots/gpio-polling-debugger-registers_1.png)
+
+![alt text](../screenshots/gpio-polling-debugger-registers1.png)
+
+![alt text](../screenshots/gpio-polling-debugger-registers2.png)
+
+![alt text](../screenshots/gpio-polling-debugger-registers3.png)
+
+![alt text](../screenshots/gpio-polling-debugger-registers4.png)
+
+#### 3.4 Hardware testing
+
+#### 3.4 Hardware Testing
+
+After configuring the GPIO registers and flashing the program, I tested it using the physical B1 User Button on the STM32F407G-DISC1 board.
+
+**Test 1 — Button Pressed**
+- I pressed the B1 User Button. PA0 received a HIGH signal.
+- The program detected that PA0 was HIGH through the IDR register.
+- The program set PD12 HIGH through the ODR register.(If block)
+- Green LED4 turned ON.
+
+**Screenshot — Button Pressed, LED ON**
+![alt text](../screenshots/gpio-polling-led-ON.png)
+
+**Test 2 — Button Released**
+- I released the B1 User Button. PA0 returned to LOW.
+- The program entered the else block.
+- The program cleared PD12 through the ODR register.
+- Green LED4 turned OFF.
+
+**Screenshot — Button released, LED OFF**
+![alt text](../screenshots/gpio-polling-led-off.png)
+
+**Result:** Both tests worked as expected. The onboard Green LED followed the state of the User Button.
+
+#### 3.5 My observations
+
+This was my first GPIO polling experiment using the actual STM32F407G-DISC1 board without HAL or LL libraries.
+A few things I understood better through this experiment:
+
+1. Enabling a GPIO peripheral clock is necessary before configuring or using that GPIO port.
+2. The MODER register determines whether a GPIO pin works as an input or output.
+3. The IDR register allows the CPU to read the actual input pin state.
+4. The ODR register allows the CPU to control the output pin state.
+5. Polling means the CPU continuously checks the input state inside a loop.
+6. The LED does not automatically follow the button. My program reads the button state and explicitly controls the LED.
+
+**What I verified on hardware:**
+
+When I pressed B1, Green LED4 turned ON. When I released B1, it turned OFF. This confirmed that my GPIO input configuration, output configuration and polling logic were working together correctly.
+
+**Experiment status: Successful.**
+
+### Related STM32CubeIDE Project
+The actual STM32CubeIDE project, including the register-level GPIO polling implementation, is available here:
+[STM32F407 GPIO polling project](https://github.com/MythiliSivasubramanian/Projects_STM32/blob/main/Interrupts_NVIC/Polling/STM32F407_GPIO_Polling/Src/main.c)
